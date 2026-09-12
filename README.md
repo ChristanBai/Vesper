@@ -2,6 +2,8 @@
 
 Local-first, read-only Trading 212 intelligence for Codex.
 
+Version: `2.0.0` · Author: ChristanBai
+
 [English](#english) | [中文](#中文)
 
 [Latest Release](https://github.com/ChristanBai/Vesper/releases/latest) | [Installation Guide](docs/INSTALL.md)

@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "vesper": {
+      "command": "node",
+      "args": [
+        "scripts/vesper-mcp.mjs"
+      ],
+      "cwd": ".",
+      "env_vars": [
+        "T212_API_KEY",
+        "T212_API_SECRET",
+        "FINNHUB_API_KEY",
+        "TWELVE_DATA_API_KEY",
+        "VESPER_STATE_DIR",
+        "VESPER_CLOUD_URL",
+        "VESPER_DASHBOARD_TOKEN",
+        "VESPER_MODE"
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "vesper-codex",
+  "version": "2.0.0",
+  "description": "Local-first, read-only Trading 212 portfolio intelligence, charts, risk review and daily briefs in Codex.",
+  "author": {
+    "name": "ChristanBai",
+    "url": "https://github.com/ChristanBai"
+  },
+  "homepage": "https://github.com/ChristanBai/Vesper",
+  "repository": "https://github.com/ChristanBai/Vesper",
+  "license": "MIT",
+  "keywords": [
+    "trading212",
+    "portfolio",
+    "market-data",
+    "risk",
+    "mcp",
+    "codex",
+    "read-only"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Vesper",
+    "shortDescription": "Read-only Trading 212 intelligence",
+    "longDescription": "Connect a Trading 212 account through a local Keychain-backed MCP server. Review real holdings, Pies, execution markers, technical analysis, backtests, reports and a daily portfolio brief. The plugin has no order execution or account-write capability.",
+    "developerName": "ChristanBai",
+    "category": "Finance",
+    "capabilities": [
+      "Read"
+    ],
+    "logo": "./assets/app-icon.png",
+    "defaultPrompt": [
+      "Open my Vesper dashboard",
+      "Verify my Pies against real positions",
+      "Run my daily portfolio brief"
+    ],
+    "websiteURL": "https://github.com/ChristanBai/Vesper",
+    "brandColor": "#1D1D1F",
+    "screenshots": []
+  },
+  "mcpServers": "./.mcp.json"
+}

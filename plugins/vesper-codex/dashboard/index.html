@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vesper</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-mark">V</span>
+        <div>
+          <strong>Vesper</strong>
+          <span>Codex intelligence</span>
+        </div>
+      </div>
+      <nav aria-label="Primary navigation">
+        <button class="nav-item active" data-view="dashboard">
+          <span class="nav-icon">01</span><span data-i18n="nav.dashboard">Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="sources">
+          <span class="nav-icon">02</span><span data-i18n="nav.sources">Data sources</span>
+        </button>
+        <button class="nav-item" data-view="ai">
+          <span class="nav-icon">03</span><span data-i18n="nav.ai">AI engines</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">04</span><span data-i18n="nav.settings">Settings</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot" id="sidebar-status"></span>
+        <span id="sidebar-status-text">Connecting</span>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="icon-button" id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
+        <div>
+          <p class="eyebrow">Portfolio workspace</p>
+          <h1 id="page-title">Dashboard</h1>
+        </div>
+        <div class="topbar-actions">
+          <span class="source-badge" id="source-badge">Source pending</span>
+          <button class="secondary-button" id="language-toggle" aria-label="Switch language">EN</button>
+          <button class="secondary-button" id="refresh-button" data-i18n="common.refresh">Refresh</button>
+        </div>
+      </header>
+
+      <section class="view active" data-panel="dashboard">
+        <section class="brief-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow" data-i18n="brief.eyebrow">Daily brief</p>
+              <h2 id="brief-title" data-i18n="brief.title">Portfolio review</h2>
+              <p class="muted" id="brief-meta">Waiting for account data</p>
+            </div>
+            <span class="badge" id="brief-status">Read-only</span>
+          </div>
+          <div class="brief-columns">
+            <div>
+              <h3 data-i18n="brief.contribution">Contribution</h3>
+              <ul class="brief-list" id="brief-contributors"></ul>
+            </div>
+            <div>
+              <h3 data-i18n="brief.risk">Risk review</h3>
+              <ul class="brief-list" id="brief-risks"></ul>
+            </div>
+            <div>
+              <h3 data-i18n="brief.quality">Data quality</h3>
+              <ul class="brief-list" id="brief-quality"></ul>
+            </div>
+          </div>
+          <p class="fine-print">Daily Brief is a read-only summary of the brokerage account. It ranks contribution, concentration and data-quality warnings; it does not create or recommend executable orders.</p>
+        </section>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span data-i18n="metric.total">Total value</span>
+            <strong id="metric-total">—</strong>
+            <small id="metric-total-note">Waiting for account data</small>
+          </article>
+          <article class="metric-card has-tooltip" data-tooltip-key="unrealized">
+            <span data-i18n="metric.unrealized">Unrealized P/L</span>
+            <strong id="metric-unrealized">—</strong>
+            <small id="metric-unrealized-note">Positions</small>
+          </article>
+          <article class="metric-card">
+            <span data-i18n="metric.cash">Available cash</span>
+            <strong id="metric-cash">—</strong>
+            <small id="metric-cash-note">Available for investment</small>
+          </article>
+          <article class="metric-card">
+            <span data-i18n="metric.sync">Sync</span>
+            <strong id="metric-sync">—</strong>
+            <small id="metric-sync-note">No cache</small>
+          </article>
+        </div>
+
+        <section class="market-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow" data-i18n="chart.eyebrow">Market chart</p>
+              <h2 id="chart-title">Select a holding</h2>
+              <p class="muted" id="chart-meta">Live price, source, delay and execution markers</p>
+            </div>
+            <div class="chart-controls">
+              <div class="segmented" aria-label="Chart type">
+                <button class="active" data-chart-type="line" data-i18n="chart.line">Line</button>
+                <button data-chart-type="candles" data-i18n="chart.candles">Candles</button>
+              </div>
+              <select id="symbol-select" aria-label="Symbol"></select>
+              <select id="interval-select" aria-label="Interval">
+                <option value="auto">Auto</option>
+                <option value="10m">10m</option>
+                <option value="15m">15m</option>
+                <option value="30m">30m</option>
+                <option value="1h">1h</option>
+                <option value="1D">1D</option>
+                <option value="1W">1W</option>
+              </select>
+            </div>
+          </div>
+          <div class="range-row" aria-label="Chart range">
+            <button data-range="1D">1D</button>
+            <button data-range="1W">1W</button>
+            <button data-range="1M">1M</button>
+            <button data-range="6M">6M</button>
+            <button class="active" data-range="1Y">1Y</button>
+            <button data-range="MAX">MAX</button>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="market-chart" role="img" aria-label="Market price chart with buy and sell markers"></canvas>
+            <div class="chart-tooltip" id="chart-tooltip" hidden></div>
+            <div class="chart-empty" id="chart-empty" hidden></div>
+          </div>
+          <div class="chart-window">
+            <div class="chart-window-labels">
+              <span id="window-start-label">Start</span>
+              <span id="window-end-label">End</span>
+            </div>
+            <div class="dual-range">
+              <input id="window-start" type="range" min="0" max="100" value="60" aria-label="Visible range start">
+              <input id="window-end" type="range" min="0" max="100" value="100" aria-label="Visible range end">
+            </div>
+          </div>
+          <div class="legend">
+            <span><i class="legend-dot buy"></i><span data-i18n="chart.buy">Buy marker</span></span>
+            <span><i class="legend-dot sell"></i><span data-i18n="chart.sell">Sell marker</span></span>
+            <span id="marker-status">No execution markers</span>
+            <span id="updated-at">Not updated</span>
+          </div>
+        </section>
+
+        <div class="content-grid">
+          <section class="table-panel">
+            <div class="section-heading compact">
+              <div><p class="eyebrow" data-i18n="positions.eyebrow">Positions</p><h2 data-i18n="positions.title">Portfolio</h2></div>
+              <span class="muted" id="verification-badge">Unverified</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th data-i18n="table.symbol">Symbol</th><th data-i18n="table.quantity">Quantity</th><th data-i18n="table.average">Average</th><th data-i18n="table.price">Price</th><th data-i18n="table.value">Value</th><th data-i18n="table.pnl">P/L</th><th data-i18n="table.return">Return</th><th data-i18n="table.latest">Latest trade</th></tr></thead>
+                <tbody id="positions-body"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="detail-panel">
+            <div class="section-heading compact">
+              <div><p class="eyebrow" data-i18n="trade.eyebrow">Trade review</p><h2 id="trade-title">No symbol</h2></div>
+              <span class="muted" id="trade-count">0 trades</span>
+            </div>
+            <div class="trade-summary" id="trade-summary"></div>
+            <div class="trade-list" id="trade-list"></div>
+          </section>
+        </div>
+
+        <section class="table-panel">
+          <div class="section-heading compact">
+            <div><p class="eyebrow">Pies</p><h2>Position reconciliation</h2></div>
+            <span class="muted" id="pie-status">Waiting</span>
+          </div>
+          <div class="pie-grid" id="pie-grid"></div>
+        </section>
+      </section>
+
+      <section class="view" data-panel="sources">
+        <div class="panel-stack">
+          <article class="wide-panel">
+            <p class="eyebrow" data-i18n="sources.marketEyebrow">Market data</p>
+            <h2 data-i18n="sources.hierarchy">Source hierarchy</h2>
+            <p data-i18n="sources.description">Vesper labels every quote with its provider, update time and delay. Trading 212 is used only for account and execution data.</p>
+            <div class="source-list" id="source-list"></div>
+          </article>
+          <article class="wide-panel">
+            <p class="eyebrow" data-i18n="sources.accountEyebrow">Trading 212</p>
+            <h2 data-i18n="sources.accountTitle">Account synchronization</h2>
+            <div id="sync-details" class="definition-list"></div>
+          </article>
+          <article class="wide-panel">
+            <p class="eyebrow" data-i18n="sources.setupEyebrow">Setup guide</p>
+            <h2 data-i18n="sources.permissionsTitle">Required read-only permissions</h2>
+            <p data-i18n="sources.permissionsBody">In Trading 212, open Settings → API (Beta) → Permissions. Enable account, portfolio, Pies read and all History/Orders read permissions. Leave Orders - Execute and Pies - Write disabled.</p>
+            <ul class="check-list">
+              <li><strong>History - Orders</strong><span>Required for buy and sell markers on the K-line.</span></li>
+              <li><strong>Orders - Read</strong><span>Read open orders and execution status.</span></li>
+              <li><strong>History - Dividends / Transactions</strong><span>Required for cash-flow and trade review.</span></li>
+              <li><strong>Pies - Read</strong><span>Required for reconciliation. Never enable Pies - Write.</span></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-panel="ai">
+        <div class="panel-stack">
+          <article class="wide-panel">
+            <p class="eyebrow" data-i18n="ai.eyebrow">Research stack</p>
+            <h2 data-i18n="ai.title">AI engines</h2>
+            <p data-i18n="ai.description">Technical analysis, portfolio review, backtesting and report generation run through MCP tools. This workspace is strictly read-only and cannot place or cancel orders.</p>
+            <details class="engine-details" open>
+              <summary>Available engines</summary>
+              <div class="engine-grid">
+                <div><strong>Technical analysis</strong><span>Trend, RSI, moving averages, volatility and drawdown.</span></div>
+                <div><strong>Trade review</strong><span>Invested capital, recovery, execution markers and benchmark.</span></div>
+                <div><strong>Risk review</strong><span>Position weight, concentration, contribution and data-quality warnings.</span></div>
+                <div><strong>Backtest</strong><span>SMA crossover with equity curve and drawdown.</span></div>
+              </div>
+            </details>
+            <div class="guide-grid">
+              <div><strong>Daily Brief</strong><span>Uses real positions to calculate value, concentration, contribution, drag, recent orders and data-quality warnings.</span></div>
+              <div><strong>Technical analysis</strong><span>Calculates trend, RSI, moving averages, volatility, drawdown and a confidence score.</span></div>
+              <div><strong>News and fundamentals</strong><span>Yahoo, Finnhub and optional Longbridge data can add headlines, ratings and research evidence.</span></div>
+              <div><strong>Backtest</strong><span>Tests research hypotheses with an explicit disclaimer; results are not execution instructions.</span></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" data-panel="settings">
+        <div class="panel-stack">
+          <article class="wide-panel">
+            <p class="eyebrow" data-i18n="settings.eyebrow">Security</p>
+            <h2 data-i18n="settings.title">Local-first configuration</h2>
+            <div id="settings-status" class="definition-list"></div>
+            <p class="fine-print">API credentials are read from macOS Keychain or environment variables. A cloud dashboard receives snapshots only after an explicit sync is configured; secrets never leave this Mac.</p>
+          </article>
+          <article class="wide-panel">
+            <p class="eyebrow">Codex connection</p>
+            <h2 data-i18n="settings.startTitle">Start Vesper</h2>
+            <p data-i18n="settings.startBody">在 Codex 中只需要发送“启动 Vesper”。它会一次性检查 API、刷新真实持仓和订单历史、生成每日简报并打开这个看板。API Key 只需第一次保存到 macOS Keychain，之后的运行会自动复用。</p>
+          </article>
+          <article class="wide-panel">
+            <details class="news-drawer">
+              <summary>News and MCP</summary>
+              <div id="news-content" class="muted">Open a Codex task and ask Vesper for recent news on a symbol.</div>
+            </details>
+          </article>
+          <article class="wide-panel">
+            <p class="eyebrow">Compliance</p>
+            <h2>Disclaimer</h2>
+            <p>Vesper is a research and risk-management tool. It is not investment advice, does not guarantee returns, and does not replace a licensed advisor or your own independent judgement.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

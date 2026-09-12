@@ -1,0 +1,22 @@
+{
+  "name": "vesper-codex",
+  "version": "2.0.0",
+  "description": "Local-first Trading 212 intelligence MCP and dashboard for Codex",
+  "type": "module",
+  "private": true,
+  "author": "ChristanBai",
+  "homepage": "https://github.com/ChristanBai/Vesper",
+  "repository": "https://github.com/ChristanBai/Vesper",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "mcp": "node scripts/vesper-mcp.mjs",
+    "dashboard": "node scripts/dashboard-server.mjs",
+    "sync": "node scripts/sync.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "license": "MIT"
+}

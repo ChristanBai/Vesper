@@ -1,0 +1,20 @@
+{
+  "name": "vesper",
+  "interface": {
+    "displayName": "Vesper"
+  },
+  "plugins": [
+    {
+      "name": "vesper-codex",
+      "source": {
+        "source": "local",
+        "path": "./plugins/vesper-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Finance"
+    }
+  ]
+}

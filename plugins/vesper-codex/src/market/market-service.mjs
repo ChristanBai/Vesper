@@ -4,6 +4,8 @@ const RANGE_CONFIG = {
   "1D": { range: "1d", interval: "5m" },
   "1W": { range: "5d", interval: "30m" },
   "1M": { range: "1mo", interval: "1d" },
+  "3M": { range: "3mo", interval: "1d" },
+  YTD: { range: "ytd", interval: "1d" },
   "6M": { range: "6mo", interval: "1d" },
   "1Y": { range: "1y", interval: "1d" },
   MAX: { range: "max", interval: "1wk" }
@@ -13,18 +15,23 @@ const HISTORY_FALLBACK_DAYS = {
   "1D": 5,
   "1W": 10,
   "1M": 40,
+  "3M": 120,
+  YTD: 400,
   "6M": 220,
   "1Y": 400,
   MAX: 3650
 };
 
 const INTERVAL_CONFIG = {
+  "1m": { yahooRange: "1d", yahooInterval: "1m", twelveInterval: "1min", label: "1m" },
+  "5m": { yahooRange: "5d", yahooInterval: "5m", twelveInterval: "5min", label: "5m" },
   "10m": { yahooRange: null, yahooInterval: null, twelveInterval: "10min", label: "10m" },
   "15m": { yahooRange: "5d", yahooInterval: "15m", twelveInterval: "15min", label: "15m" },
   "30m": { yahooRange: "1mo", yahooInterval: "30m", twelveInterval: "30min", label: "30m" },
   "1h": { yahooRange: "6mo", yahooInterval: "60m", twelveInterval: "1h", label: "1h" },
   "1D": { yahooRange: "1y", yahooInterval: "1d", twelveInterval: "1day", label: "1D" },
-  "1W": { yahooRange: "5y", yahooInterval: "1wk", twelveInterval: "1week", label: "1W" }
+  "1W": { yahooRange: "5y", yahooInterval: "1wk", twelveInterval: "1week", label: "1W" },
+  "1M": { yahooRange: "10y", yahooInterval: "1mo", twelveInterval: "1month", label: "1M" }
 };
 
 export class MarketService {
@@ -57,6 +64,77 @@ export class MarketService {
       errors.push(error.message);
     }
     throw new Error(`No quote source available for ${symbol}. ${errors.join(" | ")}`);
+  }
+
+  async quotes(inputSymbols = []) {
+    const symbols = [...new Set(inputSymbols.map(normalizeTicker).filter(Boolean))].slice(0, 100);
+    if (!symbols.length) return { items: {}, source: "TradingView", updatedAt: new Date().toISOString(), missing: [] };
+
+    const candidates = [];
+    const candidatesBySymbol = new Map();
+    for (const symbol of symbols) {
+      const symbolCandidates = tradingViewSymbols(symbol);
+      candidatesBySymbol.set(symbol, symbolCandidates);
+      candidates.push(...symbolCandidates);
+    }
+
+    try {
+      const response = await this.fetchImpl("https://scanner.tradingview.com/global/scan", {
+        method: "POST",
+        signal: AbortSignal.timeout(this.timeoutMs),
+        headers: { "Content-Type": "application/json", "User-Agent": "Vesper-Codex/0.1" },
+        body: JSON.stringify({
+          symbols: { tickers: candidates, query: { types: [] } },
+          columns: ["name", "close", "change", "volume", "update_mode", "currency"]
+        })
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const candidateQuotes = new Map();
+      for (const row of Array.isArray(payload?.data) ? payload.data : []) {
+        const values = row?.d;
+        if (!row?.s || !Array.isArray(values) || !Number.isFinite(Number(values[1]))) continue;
+        candidateQuotes.set(row.s, {
+          name: values[0] || row.s,
+          price: Number(values[1]),
+          changePercent: Number(values[2] || 0) / 100,
+          volume: Number(values[3] || 0),
+          currency: values[5] || null,
+          streaming: String(values[4] || "").includes("streaming"),
+          delayedByMinutes: String(values[4] || "").includes("900") ? 15 : String(values[4] || "").includes("streaming") ? 0 : null,
+          source: "TradingView",
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      const items = {};
+      const missing = [];
+      for (const symbol of symbols) {
+        const match = (candidatesBySymbol.get(symbol) || []).map((candidate) => candidateQuotes.get(candidate)).find(Boolean);
+        if (match) items[symbol] = { symbol, ...match, currency: match.currency || inferCurrency(symbol) };
+        else missing.push(symbol);
+      }
+
+      if (missing.length) {
+        const fallbacks = await Promise.allSettled(missing.map((symbol) => this.quote(symbol)));
+        fallbacks.forEach((result, index) => {
+          if (result.status === "fulfilled") items[missing[index]] = result.value;
+        });
+      }
+      return { items, source: "TradingView", updatedAt: new Date().toISOString(), missing: symbols.filter((symbol) => !items[symbol]) };
+    } catch {
+      const settled = await Promise.allSettled(symbols.map((symbol) => this.quote(symbol)));
+      const items = {};
+      settled.forEach((result, index) => {
+        if (result.status === "fulfilled") items[symbols[index]] = result.value;
+      });
+      return {
+        items,
+        source: "Quote fallback",
+        updatedAt: new Date().toISOString(),
+        missing: symbols.filter((symbol) => !items[symbol])
+      };
+    }
   }
 
   async history(inputSymbol, requestedRange = "1Y", requestedInterval = "auto") {
@@ -165,7 +243,7 @@ export class MarketService {
   async twelveDataHistory(symbol, requestedRange, requestedInterval = "auto") {
     const intervalConfig = INTERVAL_CONFIG[requestedInterval];
     const interval = intervalConfig?.twelveInterval || (requestedRange === "1D" ? "15min" : requestedRange === "1W" ? "1h" : "1day");
-    const outputsize = requestedInterval === "10m" ? 120 : requestedInterval === "15m" ? 160 : requestedInterval === "30m" ? 200 : 500;
+    const outputsize = requestedInterval === "1m" ? 120 : requestedInterval === "5m" ? 160 : requestedInterval === "10m" ? 120 : requestedInterval === "15m" ? 160 : requestedInterval === "30m" ? 200 : 500;
     const url = new URL("https://api.twelvedata.com/time_series");
     url.searchParams.set("symbol", twelveDataSymbol(symbol));
     url.searchParams.set("interval", interval);

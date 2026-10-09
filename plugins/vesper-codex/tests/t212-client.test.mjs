@@ -50,3 +50,22 @@ test("resolves Trading 212 pagination paths without duplicating the API prefix",
     "https://live.trading212.com/api/v0/equity/history/orders?limit=50&cursor=123"
   );
 });
+
+test("does not expose an upstream error response body", async () => {
+  const client = new T212Client({
+    apiKey: "key",
+    apiSecret: "secret",
+    minimumIntervalMs: 0,
+    fetchImpl: async () => new Response('{"accountId":"private-account","detail":"private-detail"}', { status: 401 })
+  });
+
+  await assert.rejects(
+    () => client.accountSummary(),
+    (error) => {
+      assert.equal(error.status, 401);
+      assert.equal(error.message, "Trading 212 API returned HTTP 401.");
+      assert.doesNotMatch(error.message, /private-account|private-detail/);
+      return true;
+    }
+  );
+});

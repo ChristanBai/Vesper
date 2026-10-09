@@ -94,3 +94,28 @@ test("uses Nasdaq fallback for explicit daily bars", async () => {
   assert.equal(history.interval, "1D");
   assert.equal(history.bars.length, 2);
 });
+
+test("loads a portfolio quote batch in one TradingView request", async () => {
+  let calls = 0;
+  const service = new MarketService({
+    env: {},
+    fetchImpl: async (url, options) => {
+      calls += 1;
+      assert.match(String(url), /scanner\.tradingview\.com/);
+      const requested = JSON.parse(options.body).symbols.tickers;
+      assert.deepEqual(requested, ["NASDAQ:NVDA", "NYSE:NVDA", "LSE:VUSA"]);
+      return new Response(JSON.stringify({
+        data: [
+          { s: "NASDAQ:NVDA", d: ["NVIDIA", 213.42, 0.82, 1000, "streaming", "USD"] },
+          { s: "LSE:VUSA", d: ["Vanguard S&P 500", 91.18, 0.56, 800, "delayed_900", "GBP"] }
+        ]
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+  });
+
+  const quotes = await service.quotes(["NVDA", "VUSA.L"]);
+  assert.equal(calls, 1);
+  assert.equal(quotes.items.NVDA.price, 213.42);
+  assert.equal(quotes.items["VUSA.L"].currency, "GBP");
+  assert.equal(quotes.items["VUSA.L"].delayedByMinutes, 15);
+});

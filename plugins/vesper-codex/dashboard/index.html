@@ -1,272 +1,394 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vesper</title>
+  <meta name="color-scheme" content="dark light">
+  <title>Vesper · Portfolio</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
+    <aside class="rail" id="rail">
+      <a class="brand" href="#" aria-label="Vesper">
         <span class="brand-mark">V</span>
-        <div>
-          <strong>Vesper</strong>
-          <span>Codex intelligence</span>
-        </div>
-      </div>
-      <nav aria-label="Primary navigation">
-        <button class="nav-item active" data-view="dashboard">
-          <span class="nav-icon">01</span><span data-i18n="nav.dashboard">Dashboard</span>
+        <span class="brand-name">Vesper</span>
+      </a>
+
+      <nav class="rail-nav" aria-label="Primary navigation">
+        <button class="rail-item active" data-view="overview" title="Overview">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
+          <span data-i18n="nav.overview">总览</span>
         </button>
-        <button class="nav-item" data-view="sources">
-          <span class="nav-icon">02</span><span data-i18n="nav.sources">Data sources</span>
+        <button class="rail-item" data-view="performance" title="Performance">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 5-5 4 4 8-9"/><path d="M15 7h5v5"/></svg>
+          <span data-i18n="nav.performance">表现</span>
         </button>
-        <button class="nav-item" data-view="ai">
-          <span class="nav-icon">03</span><span data-i18n="nav.ai">AI engines</span>
+        <button class="rail-item" data-view="allocation" title="Allocation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9h9A9 9 0 1 1 12 3Z"/></svg>
+          <span data-i18n="nav.allocation">配置</span>
         </button>
-        <button class="nav-item" data-view="settings">
-          <span class="nav-icon">04</span><span data-i18n="nav.settings">Settings</span>
+        <button class="rail-item" data-view="positions" title="Positions">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".8"/><circle cx="3.5" cy="12" r=".8"/><circle cx="3.5" cy="18" r=".8"/></svg>
+          <span data-i18n="nav.positions">持仓</span>
         </button>
       </nav>
-      <div class="sidebar-footer">
-        <span class="status-dot" id="sidebar-status"></span>
-        <span id="sidebar-status-text">Connecting</span>
+
+      <div class="rail-foot">
+        <button class="round-button" id="settings-button" title="Data and settings" aria-label="Data and settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.08A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.08A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.08A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.08A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.38.5.75.9.95.23.12.48.18.73.18h.08v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        </button>
+        <span class="connection-dot" id="connection-dot"></span>
+        <span class="connection-label" id="connection-label">Connecting</span>
       </div>
     </aside>
 
-    <main>
-      <header class="topbar">
-        <button class="icon-button" id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
-        <div>
-          <p class="eyebrow">Portfolio workspace</p>
-          <h1 id="page-title">Dashboard</h1>
+    <main class="main">
+      <header class="commandbar">
+        <button class="icon-button menu-button" id="menu-button" aria-label="Toggle navigation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div class="command-context">
+          <span class="context-rule"></span>
+          <div>
+            <p data-i18n="app.eyebrow">PERSONAL INVESTMENT COCKPIT</p>
+            <h1 id="page-title" data-i18n="app.title">组合总览</h1>
+          </div>
         </div>
-        <div class="topbar-actions">
-          <span class="source-badge" id="source-badge">Source pending</span>
-          <button class="secondary-button" id="language-toggle" aria-label="Switch language">EN</button>
-          <button class="secondary-button" id="refresh-button" data-i18n="common.refresh">Refresh</button>
+        <div class="command-actions">
+          <div class="global-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="global-search" type="search" autocomplete="off" placeholder="搜索持仓，例如 NVDA" aria-label="Search holdings">
+            <kbd>⌘K</kbd>
+            <div class="search-results" id="global-search-results" hidden></div>
+          </div>
+          <span class="freshness" id="freshness"><i></i><span>等待同步</span></span>
+          <button class="icon-button" id="refresh-button" aria-label="Refresh data" title="Refresh data">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66"/><path d="M20 4v7h-7"/></svg>
+          </button>
+          <button class="language-button" id="language-button" aria-label="Switch language">EN</button>
         </div>
       </header>
 
-      <section class="view active" data-panel="dashboard">
-        <section class="brief-panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow" data-i18n="brief.eyebrow">Daily brief</p>
-              <h2 id="brief-title" data-i18n="brief.title">Portfolio review</h2>
-              <p class="muted" id="brief-meta">Waiting for account data</p>
-            </div>
-            <span class="badge" id="brief-status">Read-only</span>
-          </div>
-          <div class="brief-columns">
-            <div>
-              <h3 data-i18n="brief.contribution">Contribution</h3>
-              <ul class="brief-list" id="brief-contributors"></ul>
-            </div>
-            <div>
-              <h3 data-i18n="brief.risk">Risk review</h3>
-              <ul class="brief-list" id="brief-risks"></ul>
-            </div>
-            <div>
-              <h3 data-i18n="brief.quality">Data quality</h3>
-              <ul class="brief-list" id="brief-quality"></ul>
+      <div class="sync-strip" id="sync-strip">
+        <span class="sync-pulse"></span>
+        <span id="sync-stage">连接 Trading 212</span>
+      </div>
+
+      <section class="view active" data-panel="overview">
+        <section class="portfolio-summary">
+          <div class="portfolio-primary">
+            <span class="summary-label" data-i18n="summary.total">组合总值</span>
+            <strong class="portfolio-total" id="summary-total">—</strong>
+            <div class="portfolio-day">
+              <span id="summary-today">—</span>
+              <span data-i18n="summary.today">今日</span>
+              <span class="quiet" id="summary-total-basis">总收益 —</span>
             </div>
           </div>
-          <p class="fine-print">Daily Brief is a read-only summary of the brokerage account. It ranks contribution, concentration and data-quality warnings; it does not create or recommend executable orders.</p>
+          <dl class="summary-metrics">
+            <div>
+              <dt data-i18n="summary.invested">投资市值</dt>
+              <dd id="summary-invested">—</dd>
+            </div>
+            <div>
+              <dt data-i18n="summary.cash">可用现金</dt>
+              <dd id="summary-cash">—</dd>
+            </div>
+            <div>
+              <dt data-i18n="summary.unrealized">未实现盈亏</dt>
+              <dd id="summary-unrealized">—</dd>
+            </div>
+            <div>
+              <dt data-i18n="summary.realized">已实现盈亏</dt>
+              <dd id="summary-realized">—</dd>
+            </div>
+            <div>
+              <dt data-i18n="summary.return">总收益率</dt>
+              <dd id="summary-return">—</dd>
+            </div>
+          </dl>
+          <div class="summary-signal">
+            <span class="summary-label" data-i18n="summary.movement">今日主要变化</span>
+            <div id="summary-movement">
+              <strong>—</strong>
+              <span>等待行情数据</span>
+            </div>
+          </div>
         </section>
 
-        <div class="metric-grid">
-          <article class="metric-card">
-            <span data-i18n="metric.total">Total value</span>
-            <strong id="metric-total">—</strong>
-            <small id="metric-total-note">Waiting for account data</small>
-          </article>
-          <article class="metric-card has-tooltip" data-tooltip-key="unrealized">
-            <span data-i18n="metric.unrealized">Unrealized P/L</span>
-            <strong id="metric-unrealized">—</strong>
-            <small id="metric-unrealized-note">Positions</small>
-          </article>
-          <article class="metric-card">
-            <span data-i18n="metric.cash">Available cash</span>
-            <strong id="metric-cash">—</strong>
-            <small id="metric-cash-note">Available for investment</small>
-          </article>
-          <article class="metric-card">
-            <span data-i18n="metric.sync">Sync</span>
-            <strong id="metric-sync">—</strong>
-            <small id="metric-sync-note">No cache</small>
-          </article>
-        </div>
-
-        <section class="market-panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow" data-i18n="chart.eyebrow">Market chart</p>
-              <h2 id="chart-title">Select a holding</h2>
-              <p class="muted" id="chart-meta">Live price, source, delay and execution markers</p>
-            </div>
-            <div class="chart-controls">
-              <div class="segmented" aria-label="Chart type">
-                <button class="active" data-chart-type="line" data-i18n="chart.line">Line</button>
-                <button data-chart-type="candles" data-i18n="chart.candles">Candles</button>
+        <div class="workspace-grid">
+          <section class="panel instrument-panel">
+            <header class="instrument-header">
+              <div class="instrument-identity">
+                <span class="instrument-symbol" id="instrument-symbol">—</span>
+                <div>
+                  <h2 id="instrument-name">选择一项持仓</h2>
+                  <p id="instrument-market">—</p>
+                </div>
               </div>
-              <select id="symbol-select" aria-label="Symbol"></select>
-              <select id="interval-select" aria-label="Interval">
-                <option value="auto">Auto</option>
-                <option value="10m">10m</option>
-                <option value="15m">15m</option>
-                <option value="30m">30m</option>
-                <option value="1h">1h</option>
-                <option value="1D">1D</option>
-                <option value="1W">1W</option>
+              <div class="instrument-quote">
+                <strong id="instrument-price">—</strong>
+                <span id="instrument-change">—</span>
+              </div>
+            </header>
+
+            <div class="instrument-stats" id="instrument-stats"></div>
+
+            <div class="chart-toolbar">
+              <div class="toolbar-group">
+                <span class="toolbar-label" data-i18n="chart.interval">周期</span>
+                <div class="segmented interval-control" id="interval-control">
+                  <button data-interval="1m">1m</button>
+                  <button data-interval="5m">5m</button>
+                  <button data-interval="15m">15m</button>
+                  <button data-interval="1h">1h</button>
+                  <button data-interval="1D">1D</button>
+                  <button data-interval="1W">1W</button>
+                  <button data-interval="1M">1M</button>
+                </div>
+              </div>
+              <div class="toolbar-group">
+                <span class="toolbar-label" data-i18n="chart.range">区间</span>
+                <div class="segmented range-control" id="range-control">
+                  <button data-range="1D">1D</button>
+                  <button data-range="1W">1W</button>
+                  <button data-range="1M">1M</button>
+                  <button data-range="3M">3M</button>
+                  <button data-range="YTD">YTD</button>
+                  <button class="active" data-range="1Y">1Y</button>
+                  <button data-range="MAX">ALL</button>
+                </div>
+              </div>
+              <div class="chart-mode" id="chart-mode">
+                <button class="active" data-chart-type="candles" aria-label="Candlesticks">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v3M6 18v3M18 2v5M18 16v6M3 8h6v8H3zM15 9h6v5h-6z"/></svg>
+                </button>
+                <button data-chart-type="line" aria-label="Line chart">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 5-5 4 3 4-6 5-3"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="chart-stage" id="chart-stage">
+              <canvas id="market-chart" role="img" aria-label="Price candlestick chart with personal buy and sell markers"></canvas>
+              <div class="chart-empty" id="chart-empty">
+                <span class="empty-mark">V</span>
+                <strong>连接账户后显示行情</strong>
+                <p>Vesper 会把市场价格、成本线和你的真实成交放在同一时间轴上。</p>
+              </div>
+              <div class="chart-loading" id="chart-loading" hidden>
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+
+            <footer class="chart-footer">
+              <div class="chart-legend">
+                <span><i class="legend-shape buy"></i><span data-i18n="chart.buy">买入</span></span>
+                <span><i class="legend-shape sell"></i><span data-i18n="chart.sell">卖出</span></span>
+                <span><i class="legend-line"></i><span data-i18n="chart.average">平均成本</span></span>
+              </div>
+              <div class="chart-source">
+                <span id="chart-source">Source pending</span>
+                <button id="chart-reset" type="button">重置视图</button>
+              </div>
+            </footer>
+          </section>
+
+          <aside class="panel explorer-panel">
+            <header class="panel-header compact">
+              <div>
+                <p class="eyebrow" data-i18n="explorer.eyebrow">INSTRUMENT EXPLORER</p>
+                <h2 data-i18n="explorer.title">我的标的</h2>
+              </div>
+              <span class="count-badge" id="explorer-count">0</span>
+            </header>
+            <div class="explorer-search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+              <input id="explorer-search" type="search" autocomplete="off" placeholder="搜索代码或名称">
+              <button id="clear-explorer-search" type="button" aria-label="Clear search">×</button>
+            </div>
+            <div class="filter-scroll" id="explorer-filters">
+              <button class="active" data-filter="all">全部</button>
+              <button data-filter="stocks">股票</button>
+              <button data-filter="etf">ETF</button>
+              <button data-filter="winners">盈利</button>
+              <button data-filter="losers">亏损</button>
+              <button data-filter="largest">最大仓位</button>
+            </div>
+            <div class="explorer-order">
+              <span>排序</span>
+              <select id="explorer-sort" aria-label="Sort holdings">
+                <option value="value">市值</option>
+                <option value="return">收益率</option>
+                <option value="pnl">盈亏</option>
+                <option value="symbol">代码</option>
               </select>
             </div>
-          </div>
-          <div class="range-row" aria-label="Chart range">
-            <button data-range="1D">1D</button>
-            <button data-range="1W">1W</button>
-            <button data-range="1M">1M</button>
-            <button data-range="6M">6M</button>
-            <button class="active" data-range="1Y">1Y</button>
-            <button data-range="MAX">MAX</button>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="market-chart" role="img" aria-label="Market price chart with buy and sell markers"></canvas>
-            <div class="chart-tooltip" id="chart-tooltip" hidden></div>
-            <div class="chart-empty" id="chart-empty" hidden></div>
-          </div>
-          <div class="chart-window">
-            <div class="chart-window-labels">
-              <span id="window-start-label">Start</span>
-              <span id="window-end-label">End</span>
-            </div>
-            <div class="dual-range">
-              <input id="window-start" type="range" min="0" max="100" value="60" aria-label="Visible range start">
-              <input id="window-end" type="range" min="0" max="100" value="100" aria-label="Visible range end">
-            </div>
-          </div>
-          <div class="legend">
-            <span><i class="legend-dot buy"></i><span data-i18n="chart.buy">Buy marker</span></span>
-            <span><i class="legend-dot sell"></i><span data-i18n="chart.sell">Sell marker</span></span>
-            <span id="marker-status">No execution markers</span>
-            <span id="updated-at">Not updated</span>
-          </div>
-        </section>
+            <div class="instrument-list" id="instrument-list"></div>
+          </aside>
+        </div>
 
-        <div class="content-grid">
-          <section class="table-panel">
-            <div class="section-heading compact">
-              <div><p class="eyebrow" data-i18n="positions.eyebrow">Positions</p><h2 data-i18n="positions.title">Portfolio</h2></div>
-              <span class="muted" id="verification-badge">Unverified</span>
-            </div>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th data-i18n="table.symbol">Symbol</th><th data-i18n="table.quantity">Quantity</th><th data-i18n="table.average">Average</th><th data-i18n="table.price">Price</th><th data-i18n="table.value">Value</th><th data-i18n="table.pnl">P/L</th><th data-i18n="table.return">Return</th><th data-i18n="table.latest">Latest trade</th></tr></thead>
-                <tbody id="positions-body"></tbody>
+        <div class="lower-grid">
+          <section class="panel trade-panel">
+            <header class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="trades.eyebrow">TRADE MEMORY</p>
+                <h2 id="trade-title" data-i18n="trades.title">交易历史</h2>
+              </div>
+              <div class="trade-controls">
+                <div class="segmented" id="trade-filter">
+                  <button class="active" data-side="ALL">全部</button>
+                  <button data-side="BUY">买入</button>
+                  <button data-side="SELL">卖出</button>
+                </div>
+                <span id="trade-count">0</span>
+              </div>
+            </header>
+            <div class="trade-summary" id="trade-summary"></div>
+            <div class="trade-table-wrap">
+              <table class="trade-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="table.date">时间</th>
+                    <th data-i18n="table.side">方向</th>
+                    <th data-i18n="table.quantity">数量</th>
+                    <th data-i18n="table.price">成交价</th>
+                    <th data-i18n="table.value">金额</th>
+                    <th data-i18n="table.position">交易后仓位</th>
+                  </tr>
+                </thead>
+                <tbody id="trade-list"></tbody>
               </table>
             </div>
           </section>
-          <section class="detail-panel">
-            <div class="section-heading compact">
-              <div><p class="eyebrow" data-i18n="trade.eyebrow">Trade review</p><h2 id="trade-title">No symbol</h2></div>
-              <span class="muted" id="trade-count">0 trades</span>
-            </div>
-            <div class="trade-summary" id="trade-summary"></div>
-            <div class="trade-list" id="trade-list"></div>
-          </section>
-        </div>
 
-        <section class="table-panel">
-          <div class="section-heading compact">
-            <div><p class="eyebrow">Pies</p><h2>Position reconciliation</h2></div>
-            <span class="muted" id="pie-status">Waiting</span>
+          <aside class="panel insight-panel">
+            <header class="panel-header compact">
+              <div>
+                <p class="eyebrow" data-i18n="insight.eyebrow">PORTFOLIO INTELLIGENCE</p>
+                <h2 data-i18n="insight.title">我看到了什么</h2>
+              </div>
+              <span class="ai-mark">AI</span>
+            </header>
+            <div class="insight-list" id="insight-list"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-panel="performance">
+        <header class="view-header">
+          <div>
+            <p class="eyebrow" data-i18n="performance.eyebrow">PERFORMANCE LEDGER</p>
+            <h2 data-i18n="performance.title">组合表现</h2>
+            <p data-i18n="performance.body">只展示 Vesper 实际保存的组合快照，不把当前持仓倒推成不准确的历史净值。</p>
           </div>
-          <div class="pie-grid" id="pie-grid"></div>
+          <div class="segmented range-control" id="performance-range">
+            <button data-range="1D">1D</button>
+            <button data-range="1W">1W</button>
+            <button class="active" data-range="1M">1M</button>
+            <button data-range="3M">3M</button>
+            <button data-range="YTD">YTD</button>
+            <button data-range="1Y">1Y</button>
+            <button data-range="MAX">ALL</button>
+          </div>
+        </header>
+        <div class="performance-summary" id="performance-summary"></div>
+        <section class="panel performance-chart-panel">
+          <svg id="performance-sparkline" viewBox="0 0 1000 280" preserveAspectRatio="none" role="img" aria-label="Portfolio value history"></svg>
+          <div class="performance-empty" id="performance-empty">
+            <strong>历史快照正在建立</strong>
+            <p>Vesper 每次同步都会保存组合总值。积累至少两个快照后，这里会出现真实净值曲线。</p>
+          </div>
         </section>
       </section>
 
-      <section class="view" data-panel="sources">
-        <div class="panel-stack">
-          <article class="wide-panel">
-            <p class="eyebrow" data-i18n="sources.marketEyebrow">Market data</p>
-            <h2 data-i18n="sources.hierarchy">Source hierarchy</h2>
-            <p data-i18n="sources.description">Vesper labels every quote with its provider, update time and delay. Trading 212 is used only for account and execution data.</p>
-            <div class="source-list" id="source-list"></div>
-          </article>
-          <article class="wide-panel">
-            <p class="eyebrow" data-i18n="sources.accountEyebrow">Trading 212</p>
-            <h2 data-i18n="sources.accountTitle">Account synchronization</h2>
-            <div id="sync-details" class="definition-list"></div>
-          </article>
-          <article class="wide-panel">
-            <p class="eyebrow" data-i18n="sources.setupEyebrow">Setup guide</p>
-            <h2 data-i18n="sources.permissionsTitle">Required read-only permissions</h2>
-            <p data-i18n="sources.permissionsBody">In Trading 212, open Settings → API (Beta) → Permissions. Enable account, portfolio, Pies read and all History/Orders read permissions. Leave Orders - Execute and Pies - Write disabled.</p>
-            <ul class="check-list">
-              <li><strong>History - Orders</strong><span>Required for buy and sell markers on the K-line.</span></li>
-              <li><strong>Orders - Read</strong><span>Read open orders and execution status.</span></li>
-              <li><strong>History - Dividends / Transactions</strong><span>Required for cash-flow and trade review.</span></li>
-              <li><strong>Pies - Read</strong><span>Required for reconciliation. Never enable Pies - Write.</span></li>
-            </ul>
-          </article>
-        </div>
+      <section class="view" data-panel="allocation">
+        <header class="view-header">
+          <div>
+            <p class="eyebrow" data-i18n="allocation.eyebrow">EXPOSURE MAP</p>
+            <h2 data-i18n="allocation.title">资产配置</h2>
+            <p data-i18n="allocation.body">按 Vesper 可验证的数据拆分；缺少行业元数据时明确标记，不做无依据分类。</p>
+          </div>
+          <div class="segmented" id="allocation-dimensions">
+            <button class="active" data-dimension="assetClass">资产类别</button>
+            <button data-dimension="geography">地区</button>
+            <button data-dimension="currency">币种</button>
+            <button data-dimension="sector">行业</button>
+            <button data-dimension="account">账户</button>
+          </div>
+        </header>
+        <section class="allocation-stage">
+          <div class="allocation-total">
+            <span>投资市值</span>
+            <strong id="allocation-total">—</strong>
+          </div>
+          <div class="allocation-bar" id="allocation-bar"></div>
+          <div class="allocation-list" id="allocation-list"></div>
+        </section>
       </section>
 
-      <section class="view" data-panel="ai">
-        <div class="panel-stack">
-          <article class="wide-panel">
-            <p class="eyebrow" data-i18n="ai.eyebrow">Research stack</p>
-            <h2 data-i18n="ai.title">AI engines</h2>
-            <p data-i18n="ai.description">Technical analysis, portfolio review, backtesting and report generation run through MCP tools. This workspace is strictly read-only and cannot place or cancel orders.</p>
-            <details class="engine-details" open>
-              <summary>Available engines</summary>
-              <div class="engine-grid">
-                <div><strong>Technical analysis</strong><span>Trend, RSI, moving averages, volatility and drawdown.</span></div>
-                <div><strong>Trade review</strong><span>Invested capital, recovery, execution markers and benchmark.</span></div>
-                <div><strong>Risk review</strong><span>Position weight, concentration, contribution and data-quality warnings.</span></div>
-                <div><strong>Backtest</strong><span>SMA crossover with equity curve and drawdown.</span></div>
-              </div>
-            </details>
-            <div class="guide-grid">
-              <div><strong>Daily Brief</strong><span>Uses real positions to calculate value, concentration, contribution, drag, recent orders and data-quality warnings.</span></div>
-              <div><strong>Technical analysis</strong><span>Calculates trend, RSI, moving averages, volatility, drawdown and a confidence score.</span></div>
-              <div><strong>News and fundamentals</strong><span>Yahoo, Finnhub and optional Longbridge data can add headlines, ratings and research evidence.</span></div>
-              <div><strong>Backtest</strong><span>Tests research hypotheses with an explicit disclaimer; results are not execution instructions.</span></div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="view" data-panel="settings">
-        <div class="panel-stack">
-          <article class="wide-panel">
-            <p class="eyebrow" data-i18n="settings.eyebrow">Security</p>
-            <h2 data-i18n="settings.title">Local-first configuration</h2>
-            <div id="settings-status" class="definition-list"></div>
-            <p class="fine-print">API credentials are read from macOS Keychain or environment variables. A cloud dashboard receives snapshots only after an explicit sync is configured; secrets never leave this Mac.</p>
-          </article>
-          <article class="wide-panel">
-            <p class="eyebrow">Codex connection</p>
-            <h2 data-i18n="settings.startTitle">Start Vesper</h2>
-            <p data-i18n="settings.startBody">在 Codex 中只需要发送“启动 Vesper”。它会一次性检查 API、刷新真实持仓和订单历史、生成每日简报并打开这个看板。API Key 只需第一次保存到 macOS Keychain，之后的运行会自动复用。</p>
-          </article>
-          <article class="wide-panel">
-            <details class="news-drawer">
-              <summary>News and MCP</summary>
-              <div id="news-content" class="muted">Open a Codex task and ask Vesper for recent news on a symbol.</div>
-            </details>
-          </article>
-          <article class="wide-panel">
-            <p class="eyebrow">Compliance</p>
-            <h2>Disclaimer</h2>
-            <p>Vesper is a research and risk-management tool. It is not investment advice, does not guarantee returns, and does not replace a licensed advisor or your own independent judgement.</p>
-          </article>
-        </div>
+      <section class="view" data-panel="positions">
+        <header class="view-header">
+          <div>
+            <p class="eyebrow" data-i18n="positions.eyebrow">POSITION LEDGER</p>
+            <h2 data-i18n="positions.title">全部持仓</h2>
+            <p data-i18n="positions.body">真实持仓、成本、未实现与已实现盈亏按标的合并展示。</p>
+          </div>
+          <span class="ledger-status" id="ledger-status">—</span>
+        </header>
+        <section class="panel positions-ledger">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="table.instrument">标的</th>
+                  <th data-i18n="table.quantity">数量</th>
+                  <th data-i18n="table.average">平均成本</th>
+                  <th data-i18n="table.currentPrice">现价</th>
+                  <th data-i18n="table.marketValue">市值</th>
+                  <th data-i18n="table.unrealized">未实现</th>
+                  <th data-i18n="table.realized">已实现</th>
+                  <th data-i18n="table.return">收益率</th>
+                  <th data-i18n="table.weight">权重</th>
+                </tr>
+              </thead>
+              <tbody id="positions-list"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
   </div>
+
+  <aside class="trade-inspector" id="trade-inspector" hidden>
+    <button class="inspector-close" id="trade-inspector-close" aria-label="Close trade details">×</button>
+    <p class="eyebrow">EXECUTION</p>
+    <div class="inspector-side" id="trade-inspector-side">BUY</div>
+    <strong id="trade-inspector-title">—</strong>
+    <dl id="trade-inspector-details"></dl>
+  </aside>
+
+  <dialog class="settings-dialog" id="settings-dialog">
+    <div class="dialog-head">
+      <div>
+        <p class="eyebrow">LOCAL-FIRST DATA</p>
+        <h2 data-i18n="settings.title">数据与连接</h2>
+      </div>
+      <button class="icon-button" id="settings-close" aria-label="Close settings">×</button>
+    </div>
+    <div class="dialog-section">
+      <h3 data-i18n="settings.connection">连接状态</h3>
+      <dl class="definition-list" id="settings-status"></dl>
+    </div>
+    <div class="dialog-section">
+      <h3 data-i18n="settings.sources">数据源</h3>
+      <div class="source-list" id="source-list"></div>
+    </div>
+    <p class="fine-print">Vesper 严格只读。API 凭证保存在 macOS Keychain，持仓与成交数据留在本机。</p>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

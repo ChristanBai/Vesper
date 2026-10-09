@@ -41,8 +41,8 @@ export async function createRuntime(env = process.env) {
 
     async status() {
       return {
-        plugin: "vesper-codex",
-        version: "2.0.0",
+        plugin: "vigilalpha-codex",
+        version: "0.1.0-dev.10",
         credentials,
         config: publicConfig(config),
         dataSources: {
@@ -65,6 +65,10 @@ export async function createRuntime(env = process.env) {
 
     async quote(symbol) {
       return market.quote(symbol);
+    },
+
+    async quotes(symbols) {
+      return market.quotes(symbols);
     },
 
     async history(symbol, range, interval = "auto") {
@@ -120,48 +124,132 @@ export function requireSync(sync) {
 
 export function tradeMarkers(orders, symbol) {
   const normalized = String(symbol || "").toUpperCase();
+  let runningPosition = 0;
   return orders
-    .filter((order) => !normalized || order.symbol === normalized)
-    .map((order) => ({
-      time: order.filledAt || order.orderedAt,
-      side: order.side,
-      price: order.price,
-      quantity: order.filledQuantity,
-      value: order.filledValue,
-      orderId: order.id
-    }));
+    .filter((order) => order.isTrade !== false && (!normalized || order.symbol === normalized))
+    .slice()
+    .sort((left, right) => dateValue(left.filledAt || left.orderedAt) - dateValue(right.filledAt || right.orderedAt))
+    .map((order) => {
+      const quantity = Number(order.filledQuantity || 0);
+      const positionBefore = runningPosition;
+      runningPosition += order.side === "BUY" ? quantity : order.side === "SELL" ? -quantity : 0;
+      const timestamp = order.filledAt || order.orderedAt;
+      return {
+        id: String(order.id || `${order.symbol}-${timestamp}`),
+        symbol: order.symbol,
+        timestamp,
+        time: timestamp,
+        side: order.side,
+        quantity,
+        executionPrice: Number(order.price || 0),
+        price: Number(order.price || 0),
+        grossValue: Number(order.filledValue || 0),
+        value: Number(order.filledValue || 0),
+        fees: order.fees ?? null,
+        taxes: order.taxes ?? null,
+        fxRate: order.fxRate ?? null,
+        netValue: order.netValue ?? null,
+        realisedProfitLoss: order.realisedProfitLoss ?? null,
+        currency: order.currency || null,
+        orderId: order.orderId || order.id || null,
+        tradeId: order.tradeId || null,
+        positionBefore,
+        positionAfter: runningPosition,
+        source: order.source || "trading212"
+      };
+    });
 }
 
 export function calculateTradeReview(orders, positions, symbol = null) {
   const normalized = String(symbol || "").toUpperCase();
   const relevant = normalized ? orders.filter((order) => order.symbol === normalized) : orders;
-  const buys = relevant.filter((order) => order.side === "BUY");
-  const sells = relevant.filter((order) => order.side === "SELL");
-  const totalInvested = sum(buys, "filledValue");
-  const totalRecovered = sum(sells, "filledValue");
-  const realizedPnL = totalRecovered - totalInvested * (sells.reduce((quantity, order) => quantity + order.filledQuantity, 0) / Math.max(buys.reduce((quantity, order) => quantity + order.filledQuantity, 0), 1));
+  const markers = tradeMarkers(relevant);
+  const buys = markers.filter((order) => order.side === "BUY");
+  const sells = markers.filter((order) => order.side === "SELL");
+  const totalInvested = sum(buys, "grossValue");
+  const totalRecovered = sum(sells, "grossValue");
+  const totalInvestedNet = buys.reduce((total, item) => total + cashAmount(item, "BUY"), 0);
+  const totalRecoveredNet = sells.reduce((total, item) => total + cashAmount(item, "SELL"), 0);
+  const brokerRealized = sells.map((item) => finiteOrNull(item.realisedProfitLoss));
+  const brokerComplete = sells.length > 0 && brokerRealized.every((value) => value !== null);
+  const realizedPnL = brokerComplete ? brokerRealized.reduce((sum, value) => sum + value, 0) : calculateRealizedPnL(markers);
   const position = normalized ? positions.find((item) => item.symbol === normalized) : null;
+  const firstTradeAt = markers[0]?.timestamp || null;
+  const latestTradeAt = markers.at(-1)?.timestamp || null;
+  const unrealizedPnL = position?.unrealizedPnL || positions.reduce((total, item) => total + item.unrealizedPnL, 0);
+  const totalPnL = realizedPnL + unrealizedPnL;
   return {
     symbol: normalized || null,
     totalInvested,
     totalRecovered,
+    totalInvestedNet,
+    totalRecoveredNet,
+    totalExplicitCosts: markers.reduce((total, item) => total + Number(item.fees || 0) + Number(item.taxes || 0), 0),
     netInvested: totalInvested - totalRecovered,
     realizedPnL,
-    unrealizedPnL: position?.unrealizedPnL || positions.reduce((total, item) => total + item.unrealizedPnL, 0),
-    tradeCount: relevant.length,
+    realizedPnLSource: brokerComplete ? "TRADING212_WALLET_IMPACT" : "LOCAL_FIFO_ESTIMATE",
+    unrealizedPnL,
+    totalPnL,
+    totalReturn: totalInvested ? totalPnL / totalInvested : null,
+    tradeCount: markers.length,
     buyCount: buys.length,
     sellCount: sells.length,
     averageBuyPrice: weightedAverage(buys),
     averageSellPrice: weightedAverage(sells),
-    markers: tradeMarkers(relevant)
+    firstTradeAt,
+    latestTradeAt,
+    holdingPeriodDays: firstTradeAt ? Math.max(0, Math.round((Date.now() - dateValue(firstTradeAt)) / 86_400_000)) : null,
+    markers
   };
 }
 
 function weightedAverage(orders) {
-  const quantity = orders.reduce((sum, order) => sum + order.filledQuantity, 0);
-  return quantity ? sum(orders, "filledValue") / quantity : null;
+  const quantity = orders.reduce((sum, order) => sum + order.quantity, 0);
+  return quantity ? sum(orders, "value") / quantity : null;
 }
 
 function sum(orders, field) {
   return orders.reduce((total, order) => total + Number(order[field] || 0), 0);
+}
+
+function calculateRealizedPnL(markers) {
+  const lots = [];
+  let realized = 0;
+  for (const marker of markers) {
+    if (marker.side === "BUY") {
+      lots.push({ quantity: marker.quantity, price: marker.executionPrice, feesPerShare: (Number(marker.fees || 0) + Number(marker.taxes || 0)) / Math.max(marker.quantity, 1) });
+      continue;
+    }
+    if (marker.side !== "SELL") continue;
+    let remaining = marker.quantity;
+    let cost = 0;
+    while (remaining > 0 && lots.length > 0) {
+      const lot = lots[0];
+      const matched = Math.min(remaining, lot.quantity);
+      cost += matched * (lot.price + lot.feesPerShare);
+      lot.quantity -= matched;
+      remaining -= matched;
+      if (lot.quantity <= 0.00000001) lots.shift();
+    }
+    if (remaining > 0) cost += remaining * marker.executionPrice;
+    realized += marker.quantity * marker.executionPrice - cost - Number(marker.fees || 0) - Number(marker.taxes || 0);
+  }
+  return realized;
+}
+
+function cashAmount(marker, side) {
+  const net = finiteOrNull(marker.netValue);
+  if (net !== null) return Math.abs(net);
+  const costs = Number(marker.fees || 0) + Number(marker.taxes || 0);
+  return side === "BUY" ? Number(marker.grossValue || 0) + costs : Math.max(0, Number(marker.grossValue || 0) - costs);
+}
+
+function finiteOrNull(value) {
+  const parsed = Number(value);
+  return value !== null && value !== undefined && Number.isFinite(parsed) ? parsed : null;
+}
+
+function dateValue(value) {
+  const parsed = Date.parse(value || "");
+  return Number.isFinite(parsed) ? parsed : 0;
 }

@@ -1,381 +1,497 @@
+import {
+  deriveInsights,
+  deriveOverview,
+  derivePositionLedger,
+  filterPositions,
+  groupAllocation,
+  performanceSeries,
+  sortPositions,
+  summarizePerformance
+} from "./analytics.js";
+import { VesperChart } from "./chart.js";
+
 const state = {
   status: null,
   snapshot: null,
   brief: null,
+  positions: [],
+  quoteResponse: {},
+  overview: {},
   symbol: null,
-  range: "1Y",
-  interval: "auto",
-  windowStart: 60,
-  windowEnd: 100,
-  historyKey: null,
-  chartType: "line",
+  selected: null,
   history: null,
-  quote: null,
   trades: null,
-  chartRequestId: 0,
-  quoteRequestId: 0,
+  chartType: "candles",
+  range: "1Y",
+  interval: "1D",
+  tradeFilter: "ALL",
+  explorerFilter: "all",
+  explorerQuery: "",
+  explorerSort: "value",
+  allocationDimension: "assetClass",
+  performanceRange: "1M",
+  historyRequestId: 0,
   tradesRequestId: 0,
-  language: localStorage.getItem("vesper-language") === "en" ? "en" : "zh"
+  language: localStorage.getItem("vesper-language") === "en" ? "en" : "zh",
+  loading: false
 };
 
 const translations = {
   zh: {
-    "nav.dashboard": "看板",
-    "nav.sources": "数据源",
-    "nav.ai": "AI 引擎",
-    "nav.settings": "设置",
-    "common.refresh": "刷新",
-    "status.syncing": "同步中",
-    "status.connected": "已连接",
-    "status.setup": "需要配置",
-    "status.error": "错误",
-    "brief.eyebrow": "每日简报",
-    "brief.title": "组合审查",
-    "brief.contribution": "收益贡献",
-    "brief.risk": "风险审查",
-    "brief.quality": "数据质量",
-    "metric.total": "账户总值",
-    "metric.unrealized": "未实现盈亏",
-    "metric.cash": "可用现金",
-    "metric.sync": "同步状态",
-    "chart.eyebrow": "行情图",
-    "chart.line": "折线",
-    "chart.candles": "K 线",
-    "chart.buy": "买入标记",
-    "chart.sell": "卖出标记",
-    "positions.eyebrow": "持仓",
-    "positions.title": "组合",
-    "table.symbol": "股票",
+    "app.eyebrow": "PERSONAL INVESTMENT COCKPIT",
+    "app.title": "组合总览",
+    "nav.overview": "总览",
+    "nav.performance": "表现",
+    "nav.allocation": "配置",
+    "nav.positions": "持仓",
+    "summary.total": "组合总值",
+    "summary.today": "今日",
+    "summary.invested": "投资市值",
+    "summary.cash": "可用现金",
+    "summary.unrealized": "未实现盈亏",
+    "summary.realized": "已实现盈亏",
+    "summary.return": "总收益率",
+    "summary.movement": "今日主要变化",
+    "chart.interval": "周期",
+    "chart.range": "区间",
+    "chart.buy": "买入",
+    "chart.sell": "卖出",
+    "chart.average": "平均成本",
+    "explorer.eyebrow": "INSTRUMENT EXPLORER",
+    "explorer.title": "我的标的",
+    "trades.eyebrow": "TRADE MEMORY",
+    "trades.title": "交易历史",
+    "insight.eyebrow": "PORTFOLIO INTELLIGENCE",
+    "insight.title": "我看到了什么",
+    "performance.eyebrow": "PERFORMANCE LEDGER",
+    "performance.title": "组合表现",
+    "performance.body": "只展示 Vesper 实际保存的组合快照，不把当前持仓倒推成不准确的历史净值。",
+    "allocation.eyebrow": "EXPOSURE MAP",
+    "allocation.title": "资产配置",
+    "allocation.body": "按 Vesper 可验证的数据拆分；缺少行业元数据时明确标记，不做无依据分类。",
+    "positions.eyebrow": "POSITION LEDGER",
+    "positions.title": "全部持仓",
+    "positions.body": "真实持仓、成本、未实现与已实现盈亏按标的合并展示。",
+    "settings.title": "数据与连接",
+    "settings.connection": "连接状态",
+    "settings.sources": "数据源",
+    "table.date": "时间",
+    "table.side": "方向",
     "table.quantity": "数量",
+    "table.price": "成交价",
+    "table.currentPrice": "现价",
+    "table.value": "金额",
+    "table.position": "交易后仓位",
+    "table.instrument": "标的",
     "table.average": "平均成本",
-    "table.price": "现价",
-    "table.value": "市值",
-    "table.pnl": "盈亏",
+    "table.marketValue": "市值",
+    "table.unrealized": "未实现",
+    "table.realized": "已实现",
     "table.return": "收益率",
-    "table.latest": "最近买卖",
-    "trade.eyebrow": "交易复盘",
-    "sources.marketEyebrow": "行情数据",
-    "sources.hierarchy": "数据源层级",
-    "sources.description": "每个报价都标注来源、更新时间和延迟。Trading 212 只用于账户与成交数据。",
-    "sources.accountEyebrow": "Trading 212",
-    "sources.accountTitle": "账户同步",
-    "sources.setupEyebrow": "对接说明",
-    "sources.permissionsTitle": "只需要开放只读权限",
-    "sources.permissionsBody": "在 Trading 212 中打开 Settings → API (Beta) → Permissions，开放账户、持仓、Pies 读取和 History/Orders 读取。不要开放 Orders - Execute 或 Pies - Write。",
-    "ai.eyebrow": "研究引擎",
-    "ai.title": "AI 分析",
-    "ai.description": "技术分析、组合审查、回测和报告都通过 MCP 完成。Vesper 严格只读，不能下单或撤单。",
-    "settings.eyebrow": "安全",
-    "settings.title": "本地优先配置",
-    "settings.startTitle": "一键启动 Vesper",
-    "settings.startBody": "在 Codex 中只需要发送“启动 Vesper”。它会一次性检查 API、刷新真实持仓和订单历史、生成每日简报并打开这个看板。API Key 只需第一次保存到 macOS Keychain，之后的运行会自动复用。"
+    "table.weight": "权重"
   },
   en: {
-    "nav.dashboard": "Dashboard",
-    "nav.sources": "Data sources",
-    "nav.ai": "AI engines",
-    "nav.settings": "Settings",
-    "common.refresh": "Refresh",
-    "status.syncing": "Syncing",
-    "status.connected": "Connected",
-    "status.setup": "Setup required",
-    "status.error": "Error",
-    "brief.eyebrow": "Daily brief",
-    "brief.title": "Portfolio review",
-    "brief.contribution": "Contribution",
-    "brief.risk": "Risk review",
-    "brief.quality": "Data quality",
-    "metric.total": "Total value",
-    "metric.unrealized": "Unrealized P/L",
-    "metric.cash": "Available cash",
-    "metric.sync": "Sync",
-    "chart.eyebrow": "Market chart",
-    "chart.line": "Line",
-    "chart.candles": "Candles",
-    "chart.buy": "Buy marker",
-    "chart.sell": "Sell marker",
-    "positions.eyebrow": "Positions",
-    "positions.title": "Portfolio",
-    "table.symbol": "Symbol",
+    "app.eyebrow": "PERSONAL INVESTMENT COCKPIT",
+    "app.title": "Portfolio overview",
+    "nav.overview": "Overview",
+    "nav.performance": "Performance",
+    "nav.allocation": "Allocation",
+    "nav.positions": "Positions",
+    "summary.total": "Total portfolio value",
+    "summary.today": "today",
+    "summary.invested": "Invested value",
+    "summary.cash": "Available cash",
+    "summary.unrealized": "Unrealized P&L",
+    "summary.realized": "Realized P&L",
+    "summary.return": "Total return",
+    "summary.movement": "Today’s movement",
+    "chart.interval": "Interval",
+    "chart.range": "Range",
+    "chart.buy": "Buy",
+    "chart.sell": "Sell",
+    "chart.average": "Average cost",
+    "explorer.eyebrow": "INSTRUMENT EXPLORER",
+    "explorer.title": "My instruments",
+    "trades.eyebrow": "TRADE MEMORY",
+    "trades.title": "Trade history",
+    "insight.eyebrow": "PORTFOLIO INTELLIGENCE",
+    "insight.title": "What I can see",
+    "performance.eyebrow": "PERFORMANCE LEDGER",
+    "performance.title": "Portfolio performance",
+    "performance.body": "Only portfolio snapshots actually persisted by Vesper are shown. Current holdings are never projected backwards as a false historical NAV.",
+    "allocation.eyebrow": "EXPOSURE MAP",
+    "allocation.title": "Allocation",
+    "allocation.body": "Grouped only from verifiable Vesper data. Missing sector metadata stays explicitly unavailable.",
+    "positions.eyebrow": "POSITION LEDGER",
+    "positions.title": "All positions",
+    "positions.body": "Real positions, cost, unrealized and realized P&L consolidated by instrument.",
+    "settings.title": "Data and connection",
+    "settings.connection": "Connection",
+    "settings.sources": "Data sources",
+    "table.date": "Time",
+    "table.side": "Side",
     "table.quantity": "Quantity",
-    "table.average": "Average",
-    "table.price": "Price",
+    "table.price": "Execution price",
+    "table.currentPrice": "Current price",
     "table.value": "Value",
-    "table.pnl": "P/L",
+    "table.position": "Position after",
+    "table.instrument": "Instrument",
+    "table.average": "Average cost",
+    "table.marketValue": "Market value",
+    "table.unrealized": "Unrealized",
+    "table.realized": "Realized",
     "table.return": "Return",
-    "table.latest": "Latest trade",
-    "trade.eyebrow": "Trade review",
-    "sources.marketEyebrow": "Market data",
-    "sources.hierarchy": "Source hierarchy",
-    "sources.description": "Every quote is labeled with provider, update time and delay. Trading 212 is used only for account and execution data.",
-    "sources.accountEyebrow": "Trading 212",
-    "sources.accountTitle": "Account synchronization",
-    "sources.setupEyebrow": "Setup guide",
-    "sources.permissionsTitle": "Required read-only permissions",
-    "sources.permissionsBody": "Open Trading 212 Settings → API (Beta) → Permissions. Enable account, portfolio, Pies read and History/Orders read. Leave Orders - Execute and Pies - Write disabled.",
-    "ai.eyebrow": "Research stack",
-    "ai.title": "AI engines",
-    "ai.description": "Technical analysis, portfolio review, backtesting and report generation run through MCP tools. Vesper is strictly read-only.",
-    "settings.eyebrow": "Security",
-    "settings.title": "Local-first configuration",
-    "settings.startTitle": "Start Vesper",
-    "settings.startBody": "Send “Start Vesper” in Codex. One command checks the API, refreshes holdings and order history, generates the daily brief and opens this dashboard. The API key is stored once in macOS Keychain and reused automatically."
+    "table.weight": "Weight"
   }
 };
 
-function t(key) {
-  return translations[state.language]?.[key] || translations.en[key] || key;
-}
-
 const elements = {
-  sidebar: document.querySelector("#sidebar"),
-  sidebarToggle: document.querySelector("#sidebar-toggle"),
+  rail: document.querySelector("#rail"),
+  menuButton: document.querySelector("#menu-button"),
   pageTitle: document.querySelector("#page-title"),
-  sourceBadge: document.querySelector("#source-badge"),
+  settingsButton: document.querySelector("#settings-button"),
+  settingsDialog: document.querySelector("#settings-dialog"),
+  settingsClose: document.querySelector("#settings-close"),
+  connectionDot: document.querySelector("#connection-dot"),
+  connectionLabel: document.querySelector("#connection-label"),
+  syncStrip: document.querySelector("#sync-strip"),
+  syncStage: document.querySelector("#sync-stage"),
+  freshness: document.querySelector("#freshness"),
   refresh: document.querySelector("#refresh-button"),
-  languageToggle: document.querySelector("#language-toggle"),
-  total: document.querySelector("#metric-total"),
-  totalNote: document.querySelector("#metric-total-note"),
-  unrealized: document.querySelector("#metric-unrealized"),
-  unrealizedNote: document.querySelector("#metric-unrealized-note"),
-  cash: document.querySelector("#metric-cash"),
-  cashNote: document.querySelector("#metric-cash-note"),
-  sync: document.querySelector("#metric-sync"),
-  syncNote: document.querySelector("#metric-sync-note"),
-  briefTitle: document.querySelector("#brief-title"),
-  briefMeta: document.querySelector("#brief-meta"),
-  briefStatus: document.querySelector("#brief-status"),
-  briefContributors: document.querySelector("#brief-contributors"),
-  briefRisks: document.querySelector("#brief-risks"),
-  briefQuality: document.querySelector("#brief-quality"),
-  chartTitle: document.querySelector("#chart-title"),
-  chartMeta: document.querySelector("#chart-meta"),
+  language: document.querySelector("#language-button"),
+  globalSearch: document.querySelector("#global-search"),
+  globalSearchResults: document.querySelector("#global-search-results"),
+  explorerSearch: document.querySelector("#explorer-search"),
+  clearExplorerSearch: document.querySelector("#clear-explorer-search"),
+  explorerFilters: document.querySelector("#explorer-filters"),
+  explorerSort: document.querySelector("#explorer-sort"),
+  explorerCount: document.querySelector("#explorer-count"),
+  instrumentList: document.querySelector("#instrument-list"),
+  summaryTotal: document.querySelector("#summary-total"),
+  summaryToday: document.querySelector("#summary-today"),
+  summaryTotalBasis: document.querySelector("#summary-total-basis"),
+  summaryInvested: document.querySelector("#summary-invested"),
+  summaryCash: document.querySelector("#summary-cash"),
+  summaryUnrealized: document.querySelector("#summary-unrealized"),
+  summaryRealized: document.querySelector("#summary-realized"),
+  summaryReturn: document.querySelector("#summary-return"),
+  summaryMovement: document.querySelector("#summary-movement"),
+  instrumentSymbol: document.querySelector("#instrument-symbol"),
+  instrumentName: document.querySelector("#instrument-name"),
+  instrumentMarket: document.querySelector("#instrument-market"),
+  instrumentPrice: document.querySelector("#instrument-price"),
+  instrumentChange: document.querySelector("#instrument-change"),
+  instrumentStats: document.querySelector("#instrument-stats"),
+  intervalControl: document.querySelector("#interval-control"),
+  rangeControl: document.querySelector("#range-control"),
+  chartMode: document.querySelector("#chart-mode"),
+  chartStage: document.querySelector("#chart-stage"),
   chart: document.querySelector("#market-chart"),
   chartEmpty: document.querySelector("#chart-empty"),
-  windowStart: document.querySelector("#window-start"),
-  windowEnd: document.querySelector("#window-end"),
-  windowStartLabel: document.querySelector("#window-start-label"),
-  windowEndLabel: document.querySelector("#window-end-label"),
-  tooltip: document.querySelector("#chart-tooltip"),
-  symbol: document.querySelector("#symbol-select"),
-  interval: document.querySelector("#interval-select"),
-  positionsBody: document.querySelector("#positions-body"),
-  verification: document.querySelector("#verification-badge"),
+  chartLoading: document.querySelector("#chart-loading"),
+  chartSource: document.querySelector("#chart-source"),
+  chartReset: document.querySelector("#chart-reset"),
   tradeTitle: document.querySelector("#trade-title"),
+  tradeFilter: document.querySelector("#trade-filter"),
   tradeCount: document.querySelector("#trade-count"),
   tradeSummary: document.querySelector("#trade-summary"),
   tradeList: document.querySelector("#trade-list"),
-  pieStatus: document.querySelector("#pie-status"),
-  pieGrid: document.querySelector("#pie-grid"),
-  sourceList: document.querySelector("#source-list"),
-  syncDetails: document.querySelector("#sync-details"),
+  insightList: document.querySelector("#insight-list"),
+  performanceSummary: document.querySelector("#performance-summary"),
+  performanceSparkline: document.querySelector("#performance-sparkline"),
+  performanceEmpty: document.querySelector("#performance-empty"),
+  performanceRange: document.querySelector("#performance-range"),
+  allocationDimensions: document.querySelector("#allocation-dimensions"),
+  allocationTotal: document.querySelector("#allocation-total"),
+  allocationBar: document.querySelector("#allocation-bar"),
+  allocationList: document.querySelector("#allocation-list"),
+  positionsList: document.querySelector("#positions-list"),
+  ledgerStatus: document.querySelector("#ledger-status"),
   settingsStatus: document.querySelector("#settings-status"),
-  updatedAt: document.querySelector("#updated-at"),
-  markerStatus: document.querySelector("#marker-status"),
-  sidebarStatus: document.querySelector("#sidebar-status"),
-  sidebarStatusText: document.querySelector("#sidebar-status-text")
+  sourceList: document.querySelector("#source-list"),
+  tradeInspector: document.querySelector("#trade-inspector"),
+  tradeInspectorClose: document.querySelector("#trade-inspector-close"),
+  tradeInspectorSide: document.querySelector("#trade-inspector-side"),
+  tradeInspectorTitle: document.querySelector("#trade-inspector-title"),
+  tradeInspectorDetails: document.querySelector("#trade-inspector-details"),
+  toast: document.querySelector("#toast")
 };
 
-document.querySelectorAll(".nav-item").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("active", item === button));
-    document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === button.dataset.view));
-    elements.pageTitle.textContent = t(`nav.${button.dataset.view}`);
-    elements.sidebar.classList.remove("open");
-  });
+const chart = new VesperChart(elements.chart, {
+  onMarkerSelect: (marker) => {
+    selectTradeMarker(marker.id);
+  },
+  onMarkerHover: (markerId) => {
+    document.querySelectorAll(".trade-row").forEach((row) => {
+      row.classList.toggle("hovered", row.dataset.markerId === markerId);
+    });
+  }
 });
 
-document.querySelectorAll("[data-range]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    document.querySelectorAll("[data-range]").forEach((item) => item.classList.toggle("active", item === button));
-    state.range = button.dataset.range;
-    await loadChart();
-  });
+document.querySelectorAll(".rail-item").forEach((button) => {
+  button.addEventListener("click", () => showView(button.dataset.view));
 });
 
-document.querySelectorAll("[data-chart-type]").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll("[data-chart-type]").forEach((item) => item.classList.toggle("active", item === button));
-    state.chartType = button.dataset.chartType;
-    drawChart();
-  });
-});
-
-elements.symbol.addEventListener("change", async () => {
-  await selectSymbol(elements.symbol.value);
-});
-elements.interval.addEventListener("change", async () => {
-  state.interval = elements.interval.value;
-  await loadChart();
-});
-elements.windowStart.addEventListener("input", () => {
-  state.windowStart = Math.min(Number(elements.windowStart.value), state.windowEnd - 5);
-  elements.windowStart.value = String(state.windowStart);
-  syncWindowControls();
-  drawChart();
-});
-elements.windowEnd.addEventListener("input", () => {
-  state.windowEnd = Math.max(Number(elements.windowEnd.value), state.windowStart + 5);
-  elements.windowEnd.value = String(state.windowEnd);
-  syncWindowControls();
-  drawChart();
-});
-elements.positionsBody.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-symbol]");
-  if (button) await selectSymbol(button.dataset.symbol);
+elements.menuButton.addEventListener("click", () => elements.rail.classList.toggle("open"));
+elements.settingsButton.addEventListener("click", () => elements.settingsDialog.showModal());
+elements.settingsClose.addEventListener("click", () => elements.settingsDialog.close());
+elements.settingsDialog.addEventListener("click", (event) => {
+  if (event.target === elements.settingsDialog) elements.settingsDialog.close();
 });
 elements.refresh.addEventListener("click", () => refreshAll({ force: true }));
-elements.languageToggle.addEventListener("click", async () => {
+elements.language.addEventListener("click", async () => {
   state.language = state.language === "zh" ? "en" : "zh";
   localStorage.setItem("vesper-language", state.language);
   applyLanguage();
-  await refreshAll();
+  renderAll();
 });
-elements.sidebarToggle.addEventListener("click", () => elements.sidebar.classList.toggle("open"));
-window.addEventListener("resize", debounce(drawChart, 120));
-elements.chart.addEventListener("mousemove", handleChartHover);
-elements.chart.addEventListener("mouseleave", () => { elements.tooltip.hidden = true; });
+elements.chartReset.addEventListener("click", () => chart.resetView());
+
+elements.intervalControl.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-interval]");
+  if (!button) return;
+  state.interval = button.dataset.interval;
+  syncActiveButtons(elements.intervalControl, "interval", state.interval);
+  await loadHistory();
+});
+
+elements.rangeControl.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-range]");
+  if (!button) return;
+  state.range = button.dataset.range;
+  syncActiveButtons(elements.rangeControl, "range", state.range);
+  await loadHistory();
+});
+
+elements.chartMode.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-chart-type]");
+  if (!button) return;
+  state.chartType = button.dataset.chartType;
+  syncActiveButtons(elements.chartMode, "chartType", state.chartType);
+  chart.setChartType(state.chartType);
+});
+
+elements.explorerFilters.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-filter]");
+  if (!button) return;
+  state.explorerFilter = button.dataset.filter;
+  syncActiveButtons(elements.explorerFilters, "filter", state.explorerFilter);
+  renderExplorer();
+});
+
+elements.explorerSearch.addEventListener("input", () => {
+  state.explorerQuery = elements.explorerSearch.value;
+  renderExplorer();
+});
+elements.clearExplorerSearch.addEventListener("click", () => {
+  elements.explorerSearch.value = "";
+  state.explorerQuery = "";
+  renderExplorer();
+  elements.explorerSearch.focus();
+});
+elements.explorerSort.addEventListener("change", () => {
+  state.explorerSort = elements.explorerSort.value;
+  renderExplorer();
+});
+elements.instrumentList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-symbol]");
+  if (!button) return;
+  selectSymbol(button.dataset.symbol);
+  elements.rail.classList.remove("open");
+});
+
+elements.tradeFilter.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-side]");
+  if (!button) return;
+  state.tradeFilter = button.dataset.side;
+  syncActiveButtons(elements.tradeFilter, "side", state.tradeFilter);
+  renderTrades();
+});
+elements.tradeList.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-marker-id]");
+  if (row) selectTradeMarker(row.dataset.markerId);
+});
+elements.tradeList.addEventListener("mouseover", (event) => {
+  const row = event.target.closest("[data-marker-id]");
+  if (!row) return;
+  chart.setHoveredMarker(row.dataset.markerId, false);
+});
+elements.tradeList.addEventListener("mouseout", (event) => {
+  const row = event.target.closest("[data-marker-id]");
+  if (!row || row.contains(event.relatedTarget)) return;
+  chart.setHoveredMarker(null, false);
+});
+
+elements.performanceRange.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-range]");
+  if (!button) return;
+  state.performanceRange = button.dataset.range;
+  syncActiveButtons(elements.performanceRange, "range", state.performanceRange);
+  renderPerformance();
+});
+
+elements.allocationDimensions.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-dimension]");
+  if (!button) return;
+  state.allocationDimension = button.dataset.dimension;
+  syncActiveButtons(elements.allocationDimensions, "dimension", state.allocationDimension);
+  renderAllocation();
+});
+
+elements.positionsList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-symbol]");
+  if (!button) return;
+  showView("overview");
+  selectSymbol(button.dataset.symbol);
+});
+
+elements.globalSearch.addEventListener("input", renderGlobalSearch);
+elements.globalSearch.addEventListener("focus", renderGlobalSearch);
+elements.globalSearch.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    elements.globalSearchResults.hidden = true;
+    elements.globalSearch.blur();
+  }
+  if (event.key === "Enter") {
+    const first = elements.globalSearchResults.querySelector("[data-symbol]");
+    if (first) {
+      selectSymbol(first.dataset.symbol);
+      elements.globalSearchResults.hidden = true;
+      elements.globalSearch.value = "";
+    }
+  }
+});
+elements.globalSearchResults.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-symbol]");
+  if (!button) return;
+  selectSymbol(button.dataset.symbol);
+  elements.globalSearchResults.hidden = true;
+  elements.globalSearch.value = "";
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".global-search")) elements.globalSearchResults.hidden = true;
+});
+document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    elements.globalSearch.focus();
+    renderGlobalSearch();
+  }
+  if (event.key === "Escape") {
+    elements.tradeInspector.hidden = true;
+    chart.setSelectedMarker(null);
+  }
+});
+elements.tradeInspectorClose.addEventListener("click", () => {
+  elements.tradeInspector.hidden = true;
+  chart.setSelectedMarker(null);
+  document.querySelectorAll(".trade-row.selected").forEach((row) => row.classList.remove("selected"));
+});
+window.addEventListener("resize", debounce(() => chart.draw(), 100));
 
 applyLanguage();
-await refreshAll();
-
-const events = new EventSource("/api/events");
-events.addEventListener("snapshot", () => refreshAll());
-setInterval(() => {
-  if (!document.hidden && state.symbol) loadQuote();
-}, 30_000);
-
-function applyLanguage() {
-  document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
-  for (const element of document.querySelectorAll("[data-i18n]")) {
-    element.textContent = t(element.dataset.i18n);
-  }
-  elements.languageToggle.textContent = state.language === "zh" ? "EN" : "中文";
-  const activeNav = document.querySelector(".nav-item.active");
-  if (activeNav) elements.pageTitle.textContent = t(`nav.${activeNav.dataset.view}`);
-  const tooltip = document.querySelector(".has-tooltip[data-tooltip-key='unrealized']");
-  if (tooltip) {
-    tooltip.dataset.tooltip = state.language === "zh"
-      ? "未实现盈亏：当前还持有的仓位，按现价计算但尚未卖出。已实现盈亏：已经卖出后确定的盈亏。"
-      : "Unrealized P/L is the current gain or loss on open positions. Realized P/L is locked in after a sale.";
-  }
-  renderChartMeta();
-  renderMarkerStatus();
-}
+refreshAll();
 
 async function refreshAll({ force = false } = {}) {
-  setStatus(t("status.syncing"), false);
+  if (state.loading) return;
+  state.loading = true;
+  setConnection("syncing");
+  setSyncStage("连接 Trading 212", "loading");
   try {
     const status = await request("/api/status", 8_000);
+    state.status = status;
+    renderStatus();
+
+    setSyncStage("同步持仓与成交", "loading");
     const snapshot = await request(`/api/snapshot${force ? "?refresh=1" : ""}`, 45_000).catch((error) => ({
       status: "ERROR",
       error: error.message,
+      summary: {},
       positions: [],
-      pies: [],
       orders: [],
+      tradeReview: [],
+      performanceHistory: [],
       errors: [{ section: "account", message: error.message }]
     }));
-    const brief = await request("/api/brief", 20_000).catch((error) => ({
-      generatedAt: new Date().toISOString(),
-      syncedAt: null,
-      summary: {},
-      concentration: {},
-      topContributors: [],
-      topDetractors: [],
-      recentOrders: [],
-      riskSignals: [{ severity: "medium", code: "DATA_QUALITY", message: error.message }],
-      dataQuality: { reconciliationStatus: "UNKNOWN", errors: [] }
-    }));
-    state.status = status;
     state.snapshot = snapshot;
-    state.brief = brief;
-    renderStatus();
-    renderSnapshot(snapshot);
-    renderBrief(brief);
-    populateSymbols(snapshot);
-    if (!state.symbol) state.symbol = snapshot.positions?.[0]?.symbol || snapshot.allocation?.[0]?.symbol || null;
-    if (state.symbol) {
-      elements.symbol.value = state.symbol;
-      await Promise.all([loadQuote(), loadChart(), loadTrades()]);
-    } else {
-      showChartEmpty(snapshot.error || "Trading 212 is not configured yet.");
+    state.positions = derivePositionLedger(snapshot);
+    renderSnapshotBase();
+
+    setSyncStage("计算组合与今日变化", "loading");
+    state.quoteResponse = await loadQuotes(state.positions.map((position) => position.symbol));
+    state.overview = deriveOverview(snapshot, state.quoteResponse);
+
+    if (!state.symbol || !state.positions.some((position) => position.symbol === state.symbol)) {
+      state.symbol = state.positions[0]?.symbol || null;
     }
-    setStatus(status.credentials?.configured ? t("status.connected") : t("status.setup"), Boolean(status.credentials?.configured));
+
+    renderAll();
+    if (state.symbol) await selectSymbol(state.symbol);
+    else showChartEmpty("Trading 212 尚未配置或账户没有持仓。");
+
+    const ready = Boolean(status.credentials?.configured) && snapshot.status !== "ERROR";
+    setConnection(ready ? "ready" : "error");
+    setSyncStage(
+      ready ? "组合已同步 · 看板已就绪" : (snapshot.error || "需要完成 Trading 212 连接"),
+      ready ? "ready" : "error"
+    );
+    setFreshness(snapshot.syncedAt, snapshot.status);
   } catch (error) {
-    setStatus(t("status.error"), false);
-    showChartEmpty(error.message);
+    setConnection("error");
+    setSyncStage(error.message, "error");
+    setFreshness(null, "ERROR");
+    showToast(error.message);
+  } finally {
+    state.loading = false;
   }
 }
 
-async function loadChart() {
+async function loadQuotes(symbols) {
+  const unique = [...new Set(symbols.filter(Boolean))].slice(0, 100);
+  if (!unique.length) return { items: {} };
+  try {
+    return await request(`/api/quotes?symbols=${encodeURIComponent(unique.join(","))}`, 25_000);
+  } catch {
+    return { items: {}, missing: unique };
+  }
+}
+
+async function selectSymbol(symbol) {
+  if (!symbol) return;
+  state.symbol = symbol;
+  state.selected = state.positions.find((position) => position.symbol === symbol) || null;
+  state.history = null;
+  state.trades = null;
+  renderExplorer();
+  renderInstrument();
+  elements.chartLoading.hidden = false;
+  elements.chartEmpty.hidden = true;
+  await Promise.all([loadHistory(), loadTrades()]);
+  elements.chartLoading.hidden = true;
+  renderInsights();
+}
+
+async function loadHistory() {
   if (!state.symbol) return;
   const symbol = state.symbol;
-  const requestId = ++state.chartRequestId;
+  const requestId = ++state.historyRequestId;
   try {
-    const history = await request(`/api/history?symbol=${encodeURIComponent(symbol)}&range=${state.range}&interval=${encodeURIComponent(state.interval)}`, 30_000);
-    if (requestId !== state.chartRequestId || symbol !== state.symbol) return;
+    const history = await request(
+      `/api/history?symbol=${encodeURIComponent(symbol)}&range=${encodeURIComponent(state.range)}&interval=${encodeURIComponent(state.interval)}`,
+      30_000
+    );
+    if (requestId !== state.historyRequestId || symbol !== state.symbol) return;
     state.history = history;
-    const historyKey = `${symbol}:${state.range}:${state.interval}`;
-    if (state.historyKey !== historyKey) {
-      state.historyKey = historyKey;
-      const count = history.bars?.length || 0;
-      state.windowStart = count > 120 ? 70 : count > 60 ? 55 : 0;
-      state.windowEnd = 100;
-      syncWindowControls();
-    }
-    elements.chartEmpty.hidden = state.history.bars?.length > 0;
-    elements.chartTitle.textContent = `${state.symbol} · ${state.range}${state.interval === "auto" ? "" : ` · ${state.interval}`}`;
-    elements.sourceBadge.textContent = state.history.source || "Source unavailable";
-    elements.updatedAt.textContent = `Updated ${formatDateTime(state.history.updatedAt)}`;
-    renderChartMeta();
-    renderMarkerStatus();
-    drawChart();
+    elements.chartSource.textContent = `${state.history.source || "Source unavailable"} · ${formatDateTime(state.history.updatedAt)}`;
+    updateChartData();
+    if (!state.history.bars?.length) showChartEmpty("当前区间没有行情数据。可切换周期或配置行情数据源。");
   } catch (error) {
+    if (requestId !== state.historyRequestId || symbol !== state.symbol) return;
+    state.history = { bars: [], markers: [] };
+    elements.chartSource.textContent = "Market source unavailable";
     showChartEmpty(friendlyChartError(error));
   }
-}
-
-async function loadQuote() {
-  if (!state.symbol) return;
-  const symbol = state.symbol;
-  const requestId = ++state.quoteRequestId;
-  try {
-    const quote = await request(`/api/quote?symbol=${encodeURIComponent(symbol)}`, 12_000);
-    if (requestId !== state.quoteRequestId || symbol !== state.symbol) return;
-    state.quote = quote;
-    renderChartMeta();
-    elements.sourceBadge.textContent = quote.source || "Source unavailable";
-  } catch (error) {
-    elements.markerStatus.textContent = `Quote unavailable: ${error.message}`;
-  }
-}
-
-function renderChartMeta() {
-  const history = state.history;
-  const quote = state.quote;
-  const source = quote?.source || history?.source || "Unknown source";
-  const delayValue = quote?.delayedByMinutes ?? history?.delayedByMinutes;
-  const delay = delayValue === 0
-    ? (state.language === "zh" ? "实时推送" : "streaming")
-    : `${delayValue ?? "?"} ${state.language === "zh" ? "分钟延迟" : "min delay"}`;
-  const price = quote ? ` · ${formatNumber(quote.price, 2)} ${quote.currency || ""}` : "";
-  elements.chartMeta.textContent = `${state.symbol || "Symbol"}${price} · ${source} · ${delay}`;
-}
-
-function renderMarkerStatus() {
-  const chartMarkerCount = state.history?.markers?.length || 0;
-  const tradeMarkerCount = state.trades?.markers?.length || 0;
-  const markerCount = Math.max(chartMarkerCount, tradeMarkerCount);
-  const orderError = state.snapshot?.errors?.find((error) => error.section === "orders");
-  elements.markerStatus.textContent = markerCount
-    ? chartMarkerCount > 0
-      ? `${markerCount} ${state.language === "zh" ? "个买卖标记" : "execution markers"}`
-      : `${markerCount} ${state.language === "zh" ? "笔成交记录，图表源暂不可用" : "trades loaded; chart source unavailable"}`
-    : orderError
-      ? orderError.status === 429
-        ? (state.language === "zh" ? "订单接口达到限频，稍后自动重试" : "Order-history rate limit reached; retrying automatically")
-        : (state.language === "zh" ? "订单历史暂不可用，刷新后重试" : "Order history unavailable; refresh to retry")
-      : (state.language === "zh" ? "暂无买卖标记" : "No execution markers");
 }
 
 async function loadTrades() {
@@ -383,414 +499,530 @@ async function loadTrades() {
   const symbol = state.symbol;
   const requestId = ++state.tradesRequestId;
   try {
-    const trades = await request(`/api/trades?symbol=${encodeURIComponent(symbol)}`);
+    const trades = await request(`/api/trades?symbol=${encodeURIComponent(symbol)}`, 20_000);
     if (requestId !== state.tradesRequestId || symbol !== state.symbol) return;
     state.trades = trades;
-    renderTrades(state.trades);
   } catch (error) {
-    elements.tradeList.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+    if (requestId !== state.tradesRequestId || symbol !== state.symbol) return;
+    state.trades = { symbol, markers: [], tradeCount: 0, error: error.message };
   }
+  renderTrades();
+  renderInstrument();
+  updateChartData();
+  renderInsights();
+}
+
+function updateChartData() {
+  const markers = state.trades?.markers?.length ? state.trades.markers : state.history?.markers || [];
+  chart.setData({
+    bars: state.history?.bars || [],
+    markers,
+    costBasis: state.selected?.averagePricePaid ?? null,
+    symbol: state.symbol,
+    currency: state.history?.currency || state.quoteResponse?.items?.[state.symbol]?.currency || state.selected?.instrumentCurrency,
+    preserveView: false
+  });
+}
+
+function renderAll() {
+  renderSnapshotBase();
+  renderInstrument();
+  renderExplorer();
+  renderTrades();
+  renderInsights();
+  renderPerformance();
+  renderAllocation();
+  renderPositions();
+  renderStatus();
+}
+
+function renderSnapshotBase() {
+  const summary = state.snapshot?.summary || {};
+  const currency = summary.currency || "GBP";
+  const totalPnl = number(summary.unrealizedPnL) + number(summary.realizedPnL);
+  const totalReturn = number(summary.investedValue) ? totalPnl / number(summary.investedValue) * 100 : null;
+  const dailyPnL = state.overview?.dailyPnL;
+  const dailyReturn = state.overview?.dailyReturn;
+
+  elements.summaryTotal.textContent = money(summary.totalValue, currency);
+  elements.summaryToday.textContent = dailyPnL === null || dailyPnL === undefined
+    ? "—"
+    : `${signedMoney(dailyPnL, currency)} · ${signedPercent(dailyReturn * 100)}`;
+  setValueClass(elements.summaryToday, dailyPnL);
+  elements.summaryTotalBasis.textContent = `总收益 ${signedMoney(totalPnl, currency)} · ${signedPercent(totalReturn)}`;
+  setValueClass(elements.summaryTotalBasis, totalPnl);
+
+  elements.summaryInvested.textContent = money(summary.investedValue, currency);
+  elements.summaryCash.textContent = money(summary.availableCash, currency);
+  elements.summaryUnrealized.textContent = signedMoney(summary.unrealizedPnL, currency);
+  setValueClass(elements.summaryUnrealized, summary.unrealizedPnL);
+  elements.summaryRealized.textContent = signedMoney(summary.realizedPnL, currency);
+  setValueClass(elements.summaryRealized, summary.realizedPnL);
+  elements.summaryReturn.textContent = signedPercent(totalReturn);
+  setValueClass(elements.summaryReturn, totalPnl);
+
+  const movement = state.overview?.largestGain || state.overview?.largestLoss;
+  if (movement) {
+    elements.summaryMovement.innerHTML = `
+      <strong class="${valueClass(movement.dailyPnL)}">${escapeHtml(movement.symbol)} ${signedMoney(movement.dailyPnL, currency)}</strong>
+      <span>${signedPercent(movement.changePercent * 100)} 今日变动</span>
+    `;
+  } else {
+    elements.summaryMovement.innerHTML = "<strong>—</strong><span>等待实时报价数据</span>";
+  }
+  elements.ledgerStatus.textContent = state.snapshot?.reconciliation?.status || state.snapshot?.status || "—";
+}
+
+function renderInstrument() {
+  const position = state.selected;
+  const quote = state.quoteResponse?.items?.[state.symbol] || null;
+  const price = quote?.price ?? position?.currentPrice;
+  const changePercent = quote?.changePercent ?? null;
+  const currency = quote?.currency || position?.instrumentCurrency || position?.accountCurrency || state.snapshot?.summary?.currency || "GBP";
+  elements.instrumentSymbol.textContent = state.symbol || "—";
+  elements.instrumentName.textContent = position?.name || quote?.name || "选择一项持仓";
+  elements.instrumentMarket.textContent = [
+    position?.exchange,
+    position?.instrumentType || position?.assetClass,
+    position?.instrumentCurrency
+  ].filter(Boolean).join(" · ") || "Trading 212";
+  elements.instrumentPrice.textContent = price === undefined ? "—" : money(price, currency);
+  elements.instrumentChange.textContent = changePercent === null ? "—" : signedPercent(changePercent * 100);
+  setValueClass(elements.instrumentChange, changePercent);
+
+  const stats = [
+    ["持仓数量", formatNumber(position?.quantity, 4)],
+    ["持仓市值", money(position?.marketValue, currency)],
+    ["平均成本", money(position?.averagePricePaid, currency)],
+    ["未实现盈亏", signedMoney(position?.unrealizedPnL, currency), valueClass(position?.unrealizedPnL)],
+    ["已实现盈亏", signedMoney(state.trades?.realizedPnL, currency), valueClass(state.trades?.realizedPnL)],
+    ["组合权重", formatPercent(position?.weightPercent)],
+    ["收益率", signedPercent(number(position?.returnPct) * 100), valueClass(position?.returnPct)],
+    ["首次交易", formatDate(state.trades?.firstTradeAt)],
+    ["最近交易", formatDate(state.trades?.latestTradeAt)],
+    ["买入次数", formatNumber(state.trades?.buyCount, 0)],
+    ["卖出次数", formatNumber(state.trades?.sellCount, 0)],
+    ["当前仓位", formatNumber(state.trades?.markers?.at(-1)?.positionAfter ?? position?.quantity, 4)]
+  ];
+  elements.instrumentStats.innerHTML = stats.slice(0, 12).map(([label, value, className = ""]) => `
+    <div class="instrument-stat">
+      <span>${escapeHtml(label)}</span>
+      <strong class="${className}">${escapeHtml(value)}</strong>
+    </div>
+  `).join("");
+}
+
+function renderExplorer() {
+  const filtered = filterPositions(state.positions, {
+    query: state.explorerQuery,
+    filter: state.explorerFilter
+  });
+  const sorted = sortPositions(filtered, state.explorerSort);
+  elements.explorerCount.textContent = String(filtered.length);
+  elements.instrumentList.innerHTML = sorted.length ? sorted.map((position) => {
+    const currency = position.instrumentCurrency || position.accountCurrency || state.snapshot?.summary?.currency || "GBP";
+    return `
+      <button class="instrument-row ${position.symbol === state.symbol ? "active" : ""}" data-symbol="${escapeHtml(position.symbol)}">
+        <div class="instrument-row-main">
+          <div class="instrument-row-head"><strong>${escapeHtml(position.symbol)}</strong><span>${escapeHtml(position.name || position.assetClass)}</span></div>
+          <div class="instrument-row-sub">
+            <span>${formatNumber(position.quantity, 4)} 股</span>
+            <span>${money(position.marketValue, currency)}</span>
+          </div>
+        </div>
+        <div class="instrument-row-value">
+          <strong>${money(position.currentPrice, currency)}</strong>
+          <span class="${valueClass(position.unrealizedPnL)}">${signedPercent(number(position.returnPct) * 100)}</span>
+        </div>
+      </button>
+    `;
+  }).join("") : '<div class="empty-row">没有符合条件的持仓</div>';
+}
+
+function renderTrades() {
+  const currency = state.history?.currency || state.selected?.instrumentCurrency || state.snapshot?.summary?.currency || "GBP";
+  const review = state.trades || {};
+  const markers = (review.markers || []).slice().reverse();
+  const visible = state.tradeFilter === "ALL" ? markers : markers.filter((marker) => marker.side === state.tradeFilter);
+  elements.tradeTitle.textContent = state.symbol ? `${state.symbol} · 交易历史` : "交易历史";
+  elements.tradeCount.textContent = `${visible.length}`;
+  elements.tradeSummary.innerHTML = [
+    ["累计买入", money(review.totalInvested, currency)],
+    ["累计卖出", money(review.totalRecovered, currency)],
+    ["净投入", money(review.netInvested, currency)],
+    ["已实现盈亏", signedMoney(review.realizedPnL, currency), valueClass(review.realizedPnL)],
+    ["平均买入价", money(review.averageBuyPrice, currency)],
+    ["平均卖出价", money(review.averageSellPrice, currency)]
+  ].map(([label, value, className = ""]) => `
+    <div class="trade-summary-item"><span>${escapeHtml(label)}</span><strong class="${className}">${escapeHtml(value)}</strong></div>
+  `).join("");
+  elements.tradeList.innerHTML = visible.length ? visible.map((marker) => `
+    <tr class="trade-row" data-marker-id="${escapeHtml(marker.id)}">
+      <td>${formatDateTime(marker.timestamp || marker.time)}</td>
+      <td><span class="side-pill ${escapeHtml(marker.side)}">${marker.side === "BUY" ? "BUY" : "SELL"}</span></td>
+      <td>${formatNumber(marker.quantity, 4)}</td>
+      <td>${money(marker.executionPrice || marker.price, marker.currency || currency)}</td>
+      <td>${money(marker.grossValue || marker.value, marker.currency || currency)}</td>
+      <td>${formatNumber(marker.positionAfter, 4)}</td>
+    </tr>
+  `).join("") : '<tr><td colspan="6" class="empty-row">该股票暂无已成交记录</td></tr>';
+}
+
+function renderInsights() {
+  const insights = deriveInsights({
+    snapshot: state.snapshot,
+    selected: state.selected,
+    trades: state.trades,
+    overview: state.overview
+  });
+  elements.insightList.innerHTML = insights.length ? insights.map((insight) => `
+    <article class="insight-item ${escapeHtml(insight.tone)}">
+      <span class="insight-label">${escapeHtml(insight.label)}</span>
+      <strong>${escapeHtml(insight.title)}</strong>
+      <p>${escapeHtml(insight.body)}</p>
+    </article>
+  `).join("") : '<div class="empty-row">同步持仓后生成个性洞察</div>';
+}
+
+function renderPerformance() {
+  const points = performanceSeries(state.snapshot?.performanceHistory || [], state.performanceRange);
+  const summary = summarizePerformance(points);
+  const currency = summary?.currency || state.snapshot?.summary?.currency || "GBP";
+  elements.performanceSummary.innerHTML = [
+    ["区间起点", summary ? money(summary.startValue, currency) : "—"],
+    ["当前总值", money(state.snapshot?.summary?.totalValue, currency)],
+    ["区间变化", summary ? signedMoney(summary.change, currency) : "—", summary ? valueClass(summary.change) : ""],
+    ["区间收益率", summary ? signedPercent(number(summary.returnPct) * 100) : "—", summary ? valueClass(summary.returnPct) : ""],
+    ["快照数量", String(state.snapshot?.performanceHistory?.length || 0)]
+  ].map(([label, value, className = ""]) => `
+    <div><span>${escapeHtml(label)}</span><strong class="${className}">${escapeHtml(value)}</strong></div>
+  `).join("");
+
+  if (points.length < 2) {
+    elements.performanceEmpty.hidden = false;
+    elements.performanceSparkline.innerHTML = "";
+    return;
+  }
+  elements.performanceEmpty.hidden = true;
+  elements.performanceSparkline.innerHTML = performanceSvg(points);
+}
+
+function renderAllocation() {
+  const groups = groupAllocation(state.positions, state.allocationDimension);
+  const total = state.positions.reduce((sum, position) => sum + number(position.marketValue), 0);
+  const currency = state.snapshot?.summary?.currency || "GBP";
+  const colors = ["#d9b65b", "#38b26f", "#df6259", "#6ea7c7", "#a888c5", "#b6a07d", "#738c75", "#b6b2a5"];
+  elements.allocationTotal.textContent = money(total, currency);
+  elements.allocationBar.innerHTML = groups.map((group, index) => `
+    <span class="allocation-segment" style="width:${group.weightPercent}%;--segment-color:${colors[index % colors.length]}" title="${escapeHtml(group.label)} ${formatPercent(group.weightPercent)}"></span>
+  `).join("");
+  elements.allocationList.innerHTML = groups.length ? groups.map((group, index) => `
+    <div class="allocation-row" style="--segment-color:${colors[index % colors.length]}">
+      <div class="allocation-name"><i></i><strong>${escapeHtml(group.label)}</strong></div>
+      <div class="allocation-track"><span style="width:${Math.max(0, Math.min(100, group.weightPercent))}%"></span></div>
+      <span>${formatPercent(group.weightPercent)}</span>
+      <strong>${money(group.value, currency)}</strong>
+    </div>
+  `).join("") : '<div class="empty-row">没有可展示的配置数据</div>';
+}
+
+function renderPositions() {
+  const currency = state.snapshot?.summary?.currency || "GBP";
+  elements.positionsList.innerHTML = state.positions.length ? state.positions.map((position) => {
+    const rowCurrency = position.instrumentCurrency || position.accountCurrency || currency;
+    return `
+      <tr>
+        <td>
+          <div class="symbol-cell">
+            <button data-symbol="${escapeHtml(position.symbol)}">${escapeHtml(position.symbol)}</button>
+            <div><strong>${escapeHtml(position.name || position.assetClass)}</strong><span>${escapeHtml(position.assetClass)} · ${escapeHtml(position.geography)}</span></div>
+          </div>
+        </td>
+        <td>${formatNumber(position.quantity, 4)}</td>
+        <td>${money(position.averagePricePaid, rowCurrency)}</td>
+        <td>${money(position.currentPrice, rowCurrency)}</td>
+        <td>${money(position.marketValue, currency)}</td>
+        <td class="${valueClass(position.unrealizedPnL)}">${signedMoney(position.unrealizedPnL, currency)}</td>
+        <td class="${valueClass(position.realizedPnL)}">${signedMoney(position.realizedPnL, currency)}</td>
+        <td class="${valueClass(position.returnPct)}">${signedPercent(number(position.returnPct) * 100)}</td>
+        <td>${formatPercent(position.weightPercent)}</td>
+      </tr>
+    `;
+  }).join("") : '<tr><td colspan="9" class="empty-row">没有持仓数据</td></tr>';
+}
+
+function renderGlobalSearch() {
+  const query = elements.globalSearch.value.trim();
+  const matches = sortPositions(filterPositions(state.positions, { query }), "value").slice(0, 7);
+  elements.globalSearchResults.innerHTML = matches.length ? matches.map((position) => `
+    <button class="search-result" data-symbol="${escapeHtml(position.symbol)}">
+      <strong>${escapeHtml(position.symbol)}</strong>
+      <span>${escapeHtml(position.name || position.assetClass)}</span>
+      <span>${formatPercent(position.weightPercent)}</span>
+    </button>
+  `).join("") : '<div class="empty-row">没有匹配的持仓</div>';
+  elements.globalSearchResults.hidden = false;
 }
 
 function renderStatus() {
-  const status = state.status;
+  const status = state.status || {};
+  const sources = status.dataSources || {};
+  const credentials = status.credentials || {};
   const orderError = state.snapshot?.errors?.find((error) => error.section === "orders");
-  const sourceState = status.dataSources || {};
+  elements.settingsStatus.innerHTML = [
+    ["API 凭证", credentials.configured ? "已配置" : "未配置"],
+    ["凭证来源", credentials.source || "Missing"],
+    ["账户环境", status.config?.environment || "live"],
+    ["读写权限", "只读"],
+    ["订单历史", orderError ? "部分不可用" : "可读取"],
+    ["数据位置", "本机"]
+  ].map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join("");
   elements.sourceList.innerHTML = [
-    sourceItem("Trading 212 / 212", state.language === "zh" ? "真实账户、持仓、Pies、订单历史和现金流水；不提供 K 线。" : "Real account, positions, Pies, order history and cash movements. No K-lines.", sourceState.trading212 ? (state.language === "zh" ? "已连接" : "Connected") : (state.language === "zh" ? "未配置" : "Missing")),
-    sourceItem("TradingView / TradingView", state.language === "zh" ? "主要实时报价源；英股可能推送，美股和欧股会显示延迟。" : "Primary quote source. LSE may stream; US and EU quotes show their delay.", sourceState.tradingView ? (state.language === "zh" ? "可用" : "Active") : (state.language === "zh" ? "不可用" : "Unavailable")),
-    sourceItem("Yahoo Finance / Yahoo Finance", state.language === "zh" ? "历史 K 线和报价兜底；当前网络下英股可能返回 403。" : "Historical bars and quote fallback. LSE may return HTTP 403 on this network.", sourceState.yahoo ? (state.language === "zh" ? "兜底" : "Fallback") : (state.language === "zh" ? "不可用" : "Unavailable")),
-    sourceItem("Nasdaq / Nasdaq", state.language === "zh" ? "Yahoo 不可用时，为美股提供日 K 线兜底。" : "US daily-bar fallback when Yahoo is unavailable.", sourceState.nasdaq ? (state.language === "zh" ? "美股兜底" : "US fallback") : (state.language === "zh" ? "不可用" : "Unavailable")),
-    sourceItem("Twelve Data / Twelve Data", state.language === "zh" ? "可选的英股、欧股和跨市场 K 线源。" : "Optional UK/EU and cross-market K-line source.", sourceState.twelveData ? (state.language === "zh" ? "已配置" : "Configured") : (state.language === "zh" ? "可选 Key" : "Optional key")),
-    sourceItem("Longbridge MCP / Longbridge MCP", state.language === "zh" ? "可选外部 MCP，提供实时行情、K 线、基本面和长桥新闻。" : "Optional external MCP for live quotes, candlesticks, fundamentals and Longbridge news.", state.language === "zh" ? "独立 MCP" : "Separate MCP")
-  ].join("");
-
-  elements.syncDetails.innerHTML = definitionRows({
-    [state.language === "zh" ? "凭证来源" : "Credential source"]: status.credentials?.source || "missing",
-    [state.language === "zh" ? "环境" : "Environment"]: status.config?.environment || "live",
-    [state.language === "zh" ? "账户权限" : "Account access"]: state.language === "zh" ? "只读" : "Read-only",
-    [state.language === "zh" ? "订单历史" : "Order history"]: orderError
-      ? orderError.status === 429
-        ? (state.language === "zh" ? "达到限频，稍后重试" : "Rate limited; retrying")
-        : (state.language === "zh" ? "接口异常，稍后重试" : "API issue; retrying")
-      : (state.language === "zh" ? "可读取" : "Readable"),
-    [state.language === "zh" ? "长桥" : "Longbridge"]: sourceState.longbridge ? (state.language === "zh" ? "已连接" : "Connected") : (state.language === "zh" ? "未连接" : "Not connected"),
-    [state.language === "zh" ? "看板模式" : "Dashboard mode"]: status.dashboard?.cloudConfigured ? (state.language === "zh" ? "云端已配置" : "Cloud configured") : (state.language === "zh" ? "本地" : "Local"),
-    [state.language === "zh" ? "插件版本" : "Plugin version"]: status.version
-  });
-  elements.settingsStatus.innerHTML = definitionRows({
-    [state.language === "zh" ? "API Key" : "API key"]: status.credentials?.configured ? (state.language === "zh" ? "已配置" : "Configured") : (state.language === "zh" ? "未配置" : "Missing"),
-    [state.language === "zh" ? "存储位置" : "Storage"]: status.credentials?.source || "Not configured",
-    [state.language === "zh" ? "下单能力" : "Order execution"]: state.language === "zh" ? "未实现" : "Not implemented",
-    [state.language === "zh" ? "云端密钥" : "Cloud secrets"]: state.language === "zh" ? "从不上传" : "Never uploaded"
-  });
-}
-
-function renderBrief(brief) {
-  const summary = brief.summary || {};
-  const currency = summary.currency || "GBP";
-  elements.briefTitle.textContent = `${brief.concentration?.positionCount || 0} ${state.language === "zh" ? "个持仓" : "positions"} · ${money(summary.totalValue, currency)}`;
-  elements.briefMeta.textContent = state.language === "zh"
-    ? `快照 ${formatDateTime(brief.syncedAt)} · 生成 ${formatDateTime(brief.generatedAt)}`
-    : `Snapshot ${formatDateTime(brief.syncedAt)} · generated ${formatDateTime(brief.generatedAt)}`;
-  elements.briefStatus.textContent = state.language === "zh" ? "只读" : "Read-only";
-  elements.briefStatus.className = "badge ok";
-
-  const contributors = [...(brief.topContributors || []), ...(brief.topDetractors || [])];
-  elements.briefContributors.innerHTML = contributors.length ? contributors.map((position) => `
-    <li><strong>${escapeHtml(position.symbol)} ${money(position.unrealizedPnL, currency)}</strong>${formatPercent(position.unrealizedPnLPercent)} return · ${formatPercent(position.weightPercent)} weight</li>
-  `).join("") : `<li>${state.language === "zh" ? "暂无收益贡献数据" : "No contribution data available."}</li>`;
-
-  elements.briefRisks.innerHTML = (brief.riskSignals || []).length ? brief.riskSignals.map((signal) => `
-    <li class="${escapeHtml(signal.severity)}"><strong>${escapeHtml(signal.code)}</strong>${escapeHtml(signal.message)}</li>
-  `).join("") : `<li>${state.language === "zh" ? "暂无阈值风险" : "No threshold-based risks detected."}</li>`;
-
-  const errors = brief.dataQuality?.errors || [];
-  elements.briefQuality.innerHTML = [
-    `<li><strong>${state.language === "zh" ? "Pies" : "Pies"} ${escapeHtml(brief.dataQuality?.reconciliationStatus || "UNKNOWN")}</strong>${errors.length ? `${errors.length} ${state.language === "zh" ? "条同步警告" : "sync warning(s)"}` : (state.language === "zh" ? "无核对问题" : "No reconciliation warnings")}</li>`,
-    `<li><strong>${state.language === "zh" ? "有效持仓数" : "Effective positions"} ${formatNumber(brief.concentration?.effectivePositionCount, 2)}</strong>${state.language === "zh" ? "最大仓位" : "Top one"} ${formatPercent(brief.concentration?.topOneWeightPercent)}</li>`,
-    `<li><strong>${state.language === "zh" ? "近期订单" : "Recent orders"} ${brief.recentOrders?.length || 0}</strong>${state.language === "zh" ? "最近 14 天" : "Last 14 days"}</li>`
-  ].join("");
-}
-
-function renderSnapshot(snapshot) {
-  const summary = snapshot.summary || {};
-  const currency = summary.currency || "GBP";
-  elements.total.textContent = money(summary.totalValue, currency);
-  elements.totalNote.textContent = snapshot.syncedAt
-    ? `${state.language === "zh" ? "同步于" : "Synced"} ${formatDateTime(snapshot.syncedAt)}`
-    : (state.language === "zh" ? "暂无账户快照" : "No account snapshot");
-  elements.unrealized.textContent = money(summary.unrealizedPnL, currency);
-  elements.unrealized.className = valueClass(summary.unrealizedPnL);
-  elements.unrealizedNote.textContent = `${state.language === "zh" ? "已实现" : "Realized"} ${money(summary.realizedPnL, currency)}`;
-  elements.cash.textContent = money(summary.availableCash, currency);
-  elements.cashNote.textContent = `${state.language === "zh" ? "Pie/预留" : "Pie/reserved"} ${money(summary.reservedCash, currency)}`;
-  elements.sync.textContent = snapshot.status || "UNKNOWN";
-  elements.syncNote.textContent = snapshot.errors?.length
-    ? `${snapshot.errors.length} ${state.language === "zh" ? "项同步警告" : "section warnings"}`
-    : (state.language === "zh" ? "缓存正常" : "Cache current");
-  elements.verification.textContent = snapshot.reconciliation?.status || "Unverified";
-  elements.verification.className = snapshot.reconciliation?.status === "VERIFIED" ? "muted positive" : "muted";
-  elements.pieStatus.textContent = snapshot.reconciliation?.status || "Waiting";
-
-  const latestOrderBySymbol = new Map();
-  for (const order of snapshot.orders || []) {
-    const current = latestOrderBySymbol.get(order.symbol);
-    if (!current || Date.parse(order.filledAt || order.orderedAt || "") > Date.parse(current.filledAt || current.orderedAt || "")) {
-      latestOrderBySymbol.set(order.symbol, order);
-    }
-  }
-  const orderError = snapshot.errors?.find((error) => error.section === "orders");
-
-  elements.positionsBody.innerHTML = (snapshot.positions || []).map((position) => {
-    const latestOrder = latestOrderBySymbol.get(position.symbol);
-    const latestTrade = latestOrder
-      ? `${latestOrder.side === "BUY" ? (state.language === "zh" ? "买入" : "Buy") : (state.language === "zh" ? "卖出" : "Sell")} · ${formatDateTime(latestOrder.filledAt || latestOrder.orderedAt)}`
-      : orderError
-        ? (state.language === "zh" ? "需要开启 History - Orders" : "Enable History - Orders")
-        : (state.language === "zh" ? "暂无成交" : "No filled trades");
-    return `
-    <tr>
-      <td><button class="symbol-link" data-symbol="${escapeHtml(position.symbol)}">${escapeHtml(position.symbol)}</button></td>
-      <td>${formatNumber(position.quantity, 4)}</td>
-      <td>${formatNumber(position.averagePricePaid, 2)}</td>
-      <td>${formatNumber(position.currentPrice, 2)}</td>
-      <td>${formatNumber(position.marketValue, 2)}</td>
-      <td class="${valueClass(position.unrealizedPnL)}">${formatNumber(position.unrealizedPnL, 2)}</td>
-      <td class="${valueClass(position.unrealizedPnLPercent)}">${formatPercent(position.unrealizedPnLPercent * 100)}</td>
-      <td>${escapeHtml(latestTrade)}</td>
-    </tr>
-  `;
-  }).join("") || emptyRow(8, snapshot.error || "No positions returned.");
-
-  const pies = snapshot.reconciliation?.pies || [];
-  elements.pieGrid.innerHTML = pies.length ? pies.map((pie) => `
-    <article class="pie-card">
-      <h3>${escapeHtml(pie.pieName || "Unnamed Pie")}</h3>
-      <span class="muted">${pie.instruments.length} instruments</span>
-      <ul>${pie.instruments.map((item) => `
-        <li>
-          <span>${escapeHtml(item.symbol)} · Pie ${formatNumber(item.pieQuantity, 4)} / Broker ${formatNullable(item.brokerageQuantity, 4)}</span>
-          <span class="badge ${item.status === "VERIFIED" ? "ok" : "bad"}">${item.status}</span>
-        </li>
-      `).join("")}</ul>
-    </article>
-  `).join("") : '<p class="muted">No Pies are available in this account.</p>';
-}
-
-function renderTrades(review) {
-  elements.tradeTitle.textContent = review.symbol || "Portfolio";
-  elements.tradeCount.textContent = `${review.tradeCount || 0} trades`;
-  elements.tradeSummary.innerHTML = [
-    [state.language === "zh" ? "累计买入" : "Invested", formatNumber(review.totalInvested, 2)],
-    [state.language === "zh" ? "累计卖出" : "Recovered", formatNumber(review.totalRecovered, 2)],
-    [state.language === "zh" ? "净投入" : "Net invested", formatNumber(review.netInvested, 2)],
-    [state.language === "zh" ? "已实现盈亏" : "Realized P/L", formatNumber(review.realizedPnL, 2)],
-    [state.language === "zh" ? "未实现盈亏" : "Unrealized P/L", formatNumber(review.unrealizedPnL, 2)],
-    [state.language === "zh" ? "平均买入价" : "Average buy", formatNullable(review.averageBuyPrice, 2)],
-    [state.language === "zh" ? "平均卖出价" : "Average sell", formatNullable(review.averageSellPrice, 2)],
-    [state.language === "zh" ? "胜率" : "Win rate", review.winRate === null || review.winRate === undefined ? "—" : formatPercent(review.winRate * 100)]
-  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
-  elements.tradeList.innerHTML = (review.markers || []).slice().reverse().map((marker) => `
-    <div class="trade-row">
-      <span class="trade-side ${marker.side}">${marker.side === "BUY" ? "B" : "S"}</span>
-      <div><strong>${formatNumber(marker.quantity, 4)} @ ${formatNumber(marker.price, 2)}</strong><span>${formatDateTime(marker.time)}</span></div>
-      <span>${formatNumber(marker.value, 2)}</span>
+    ["Trading 212", "账户、持仓、Pies 与成交历史", sources.trading212],
+    ["TradingView", "主要实时或延迟报价", sources.tradingView],
+    ["Yahoo Finance", "历史 K 线与报价兜底", sources.yahoo],
+    ["Nasdaq", "美股日线兜底", sources.nasdaq],
+    ["Twelve Data", "可选跨市场与分钟级行情", sources.twelveData],
+    ["Finnhub", "可选报价源", sources.finnhub]
+  ].map(([name, description, enabled]) => `
+    <div class="source-item">
+      <strong>${escapeHtml(name)} · ${enabled ? "Available" : "Optional / unavailable"}</strong>
+      <span>${escapeHtml(description)}</span>
     </div>
-  `).join("") || `<p class="muted" style="padding: 0 18px 14px">${state.language === "zh" ? "该股票暂无已成交记录。" : "No filled trades for this symbol."}</p>`;
-  renderMarkerStatus();
+  `).join("");
 }
 
-function populateSymbols(snapshot) {
-  const symbols = (snapshot.positions || []).map((position) => position.symbol);
-  const existing = new Set([...elements.symbol.options].map((option) => option.value));
-  for (const symbol of symbols) {
-    if (!symbol || existing.has(symbol)) continue;
-    const option = document.createElement("option");
-    option.value = symbol;
-    option.textContent = symbol;
-    elements.symbol.append(option);
-    existing.add(symbol);
-  }
+function selectTradeMarker(markerId) {
+  const marker = state.trades?.markers?.find((item) => item.id === markerId);
+  if (!marker) return;
+  chart.setSelectedMarker(markerId);
+  chart.focusMarker(markerId);
+  document.querySelectorAll(".trade-row").forEach((row) => {
+    row.classList.toggle("selected", row.dataset.markerId === markerId);
+    if (row.dataset.markerId === markerId) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+  openTradeInspector(marker);
 }
 
-async function selectSymbol(symbol) {
-  if (!symbol) return;
-  state.symbol = symbol;
-  elements.symbol.value = symbol;
-  state.history = null;
-  state.quote = null;
-  renderChartMeta();
-  await Promise.all([loadChart(), loadTrades()]);
-  await loadQuote();
+function openTradeInspector(marker) {
+  const currency = marker.currency || state.history?.currency || state.selected?.instrumentCurrency || state.snapshot?.summary?.currency || "GBP";
+  elements.tradeInspector.hidden = false;
+  elements.tradeInspectorSide.textContent = marker.side;
+  elements.tradeInspectorSide.className = `inspector-side ${marker.side}`;
+  elements.tradeInspectorTitle.textContent = `${state.symbol} · ${formatDateTime(marker.timestamp || marker.time)}`;
+  elements.tradeInspectorDetails.innerHTML = [
+    ["数量", formatNumber(marker.quantity, 6)],
+    ["成交价", money(marker.executionPrice || marker.price, currency)],
+    ["成交金额", money(marker.grossValue || marker.value, currency)],
+    ["费用", marker.fees === null || marker.fees === undefined ? "数据源未提供" : money(marker.fees, currency)],
+    ["交易前仓位", formatNumber(marker.positionBefore, 6)],
+    ["交易后仓位", formatNumber(marker.positionAfter, 6)],
+    ["订单 ID", marker.orderId || "—"],
+    ["成交 ID", marker.tradeId || "—"]
+  ].map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join("");
 }
 
-function drawChart() {
-  const canvas = elements.chart;
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  const context = canvas.getContext("2d");
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const width = rect.width;
-  const height = rect.height;
-  context.clearRect(0, 0, width, height);
-  const allBars = state.history?.bars || [];
-  const startIndex = Math.floor(allBars.length * state.windowStart / 100);
-  const endIndex = Math.max(startIndex + 1, Math.ceil(allBars.length * state.windowEnd / 100));
-  const bars = allBars.slice(startIndex, endIndex);
-  if (bars.length < 2) {
-    showChartEmpty();
+function showView(view) {
+  const allowed = ["overview", "performance", "allocation", "positions"];
+  const next = allowed.includes(view) ? view : "overview";
+  document.querySelectorAll(".rail-item").forEach((item) => item.classList.toggle("active", item.dataset.view === next));
+  document.querySelectorAll(".view").forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === next));
+  elements.pageTitle.textContent = t(`nav.${next}`);
+  if (next === "performance") renderPerformance();
+  if (next === "allocation") renderAllocation();
+  if (next === "positions") renderPositions();
+}
+
+function applyLanguage() {
+  document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  elements.language.textContent = state.language === "zh" ? "EN" : "中文";
+  elements.globalSearch.placeholder = state.language === "zh" ? "搜索持仓，例如 NVDA" : "Search holdings, e.g. NVDA";
+  elements.explorerSearch.placeholder = state.language === "zh" ? "搜索代码或名称" : "Search symbol or name";
+  const activeNav = document.querySelector(".rail-item.active")?.dataset.view || "overview";
+  elements.pageTitle.textContent = t(`nav.${activeNav}`);
+}
+
+function setConnection(stateName) {
+  elements.connectionDot.className = "connection-dot";
+  if (stateName === "ready") elements.connectionDot.classList.add("ready");
+  if (stateName === "error") elements.connectionDot.classList.add("error");
+  elements.connectionLabel.textContent = stateName === "ready"
+    ? (state.language === "zh" ? "已连接" : "Connected")
+    : stateName === "error"
+      ? (state.language === "zh" ? "需检查" : "Check")
+      : (state.language === "zh" ? "同步中" : "Syncing");
+}
+
+function setSyncStage(label, stateName) {
+  elements.syncStage.textContent = label;
+  elements.syncStrip.className = `sync-strip ${stateName || ""}`.trim();
+}
+
+function setFreshness(timestamp, status) {
+  const label = elements.freshness.querySelector("span");
+  elements.freshness.className = "freshness";
+  if (!timestamp || status === "ERROR") {
+    elements.freshness.classList.add("stale");
+    label.textContent = state.language === "zh" ? "未同步" : "Not synced";
     return;
   }
-  elements.chartEmpty.hidden = true;
-  const padding = { top: 18, right: 62, bottom: 30, left: 10 };
-  const values = bars.flatMap((bar) => [bar.low ?? bar.close, bar.high ?? bar.close]).filter(Number.isFinite);
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-  const spread = Math.max(max - min, max * 0.01);
-  min -= spread * 0.08;
-  max += spread * 0.08;
-  const x = (index) => padding.left + index / Math.max(bars.length - 1, 1) * (width - padding.left - padding.right);
-  const y = (value) => padding.top + (max - value) / (max - min) * (height - padding.top - padding.bottom);
-
-  context.strokeStyle = "rgba(29,29,31,.08)";
-  context.fillStyle = "#86868b";
-  context.font = "10px -apple-system, sans-serif";
-  context.textAlign = "left";
-  for (let line = 0; line <= 4; line += 1) {
-    const value = min + (max - min) * line / 4;
-    const lineY = y(value);
-    context.beginPath();
-    context.moveTo(padding.left, lineY);
-    context.lineTo(width - padding.right, lineY);
-    context.stroke();
-    context.fillText(value.toFixed(2), width - padding.right + 8, lineY + 3);
-  }
-
-  if (state.chartType === "candles") {
-    const candleWidth = Math.max(1, Math.min(8, (width - padding.left - padding.right) / bars.length * 0.62));
-    bars.forEach((bar, index) => {
-      const center = x(index);
-      const open = bar.open ?? bar.close;
-      const close = bar.close;
-      const high = bar.high ?? Math.max(open, close);
-      const low = bar.low ?? Math.min(open, close);
-      context.strokeStyle = close >= open ? "#16834a" : "#c43a34";
-      context.fillStyle = close >= open ? "#16834a" : "#c43a34";
-      context.beginPath();
-      context.moveTo(center, y(high));
-      context.lineTo(center, y(low));
-      context.stroke();
-      context.fillRect(center - candleWidth / 2, Math.min(y(open), y(close)), candleWidth, Math.max(2, Math.abs(y(open) - y(close))));
-    });
-  } else {
-    const gradient = context.createLinearGradient(0, padding.top, 0, height - padding.bottom);
-    gradient.addColorStop(0, "rgba(29,29,31,.16)");
-    gradient.addColorStop(1, "rgba(29,29,31,0)");
-    context.beginPath();
-    bars.forEach((bar, index) => {
-      const pointX = x(index);
-      const pointY = y(bar.close);
-      if (index === 0) context.moveTo(pointX, pointY);
-      else context.lineTo(pointX, pointY);
-    });
-    const linePath = context;
-    context.lineTo(x(bars.length - 1), height - padding.bottom);
-    context.lineTo(x(0), height - padding.bottom);
-    context.closePath();
-    context.fillStyle = gradient;
-    context.fill();
-    linePath.beginPath();
-    bars.forEach((bar, index) => {
-      const pointX = x(index);
-      const pointY = y(bar.close);
-      if (index === 0) linePath.moveTo(pointX, pointY);
-      else linePath.lineTo(pointX, pointY);
-    });
-    context.strokeStyle = "#1d1d1f";
-    context.lineWidth = 1.6;
-    context.stroke();
-  }
-
-  const times = bars.map((bar) => Date.parse(bar.time));
-  const markers = state.history?.markers || [];
-  markers.forEach((marker) => {
-    const markerTime = Date.parse(marker.time);
-    const index = nearestIndex(times, markerTime);
-    if (index < 0 || !Number.isFinite(marker.price)) return;
-    const pointX = x(index);
-    const pointY = y(marker.price);
-    const radius = Math.max(6, Math.min(14, 5 + Math.sqrt(Number(marker.value || 0)) / 10));
-    context.beginPath();
-    context.fillStyle = marker.side === "BUY" ? "#16834a" : "#c43a34";
-    context.arc(pointX, pointY, radius, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = "white";
-    context.font = `700 ${Math.max(8, radius)}px -apple-system, sans-serif`;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(marker.side === "BUY" ? "B" : "S", pointX, pointY + .5);
-  });
-
-  canvas._chartGeometry = { bars, padding, x, y, times };
-}
-
-function handleChartHover(event) {
-  const geometry = elements.chart._chartGeometry;
-  if (!geometry) return;
-  const rect = elements.chart.getBoundingClientRect();
-  const mouseX = event.clientX - rect.left;
-  const mouseY = event.clientY - rect.top;
-  const index = Math.round((mouseX - geometry.padding.left) / Math.max(1, rect.width - geometry.padding.left - geometry.padding.right) * (geometry.bars.length - 1));
-  if (index < 0 || index >= geometry.bars.length) return;
-  const bar = geometry.bars[index];
-  elements.tooltip.hidden = false;
-  elements.tooltip.style.left = `${event.clientX - rect.left}px`;
-  elements.tooltip.style.top = `${event.clientY - rect.top}px`;
-  elements.tooltip.innerHTML = `<strong>${escapeHtml(state.symbol)}</strong><br>${formatDateTime(bar.time)}<br>O ${formatNumber(bar.open, 2)} H ${formatNumber(bar.high, 2)}<br>L ${formatNumber(bar.low, 2)} C ${formatNumber(bar.close, 2)}`;
+  elements.freshness.classList.add("ready");
+  label.textContent = `${state.language === "zh" ? "更新于" : "Updated"} ${formatTime(timestamp)}`;
 }
 
 function showChartEmpty(message) {
-  elements.chartEmpty.hidden = true;
-  elements.chartEmpty.textContent = "";
+  elements.chartEmpty.hidden = false;
+  const title = elements.chartEmpty.querySelector("strong");
+  const body = elements.chartEmpty.querySelector("p");
+  if (title) title.textContent = message;
+  if (body) body.textContent = "Vesper 会把市场价格、成本线和你的真实成交放在同一时间轴上。";
+  chart.setData({ bars: [], markers: [], symbol: state.symbol, currency: null });
 }
 
-function syncWindowControls() {
-  elements.windowStart.value = String(state.windowStart);
-  elements.windowEnd.value = String(state.windowEnd);
-  const bars = state.history?.bars || [];
-  const start = bars[Math.floor(bars.length * state.windowStart / 100)];
-  const end = bars[Math.max(0, Math.ceil(bars.length * state.windowEnd / 100) - 1)];
-  elements.windowStartLabel.textContent = start ? formatDateTime(start.time) : "Start";
-  elements.windowEndLabel.textContent = end ? formatDateTime(end.time) : "End";
+function showToast(message) {
+  elements.toast.textContent = message;
+  elements.toast.hidden = false;
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => {
+    elements.toast.hidden = true;
+  }, 4_500);
 }
 
-function friendlyChartError(error) {
-  const message = String(error?.message || error || "Chart unavailable");
-  if (/10m|10-minute|10 minute/i.test(message)) {
-    return state.language === "zh"
-      ? "10 分钟行情需要配置 Twelve Data Key。其他周期仍可使用。"
-      : "10-minute charts require a Twelve Data key. Other intervals remain available.";
-  }
-  return state.language === "zh"
-    ? "图表数据暂时不可用，Vesper 会保留缓存并自动切换数据源。"
-    : "Chart data is temporarily unavailable. Vesper will keep the cache and switch sources automatically.";
+function syncActiveButtons(container, dataKey, value) {
+  const key = dataKey.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+  container.querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset[key] === value));
 }
 
-function setStatus(text, ready) {
-  elements.sidebarStatusText.textContent = text;
-  elements.sidebarStatus.classList.toggle("ready", ready);
+function performanceSvg(points) {
+  const values = points.map((point) => number(point.totalValue));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, max * 0.005, 0.01);
+  const width = 1000;
+  const height = 280;
+  const padding = 28;
+  const x = (index) => padding + index / Math.max(1, points.length - 1) * (width - padding * 2);
+  const y = (value) => padding + (max - value) / range * (height - padding * 2);
+  const line = points.map((point, index) => `${x(index).toFixed(2)},${y(point.totalValue).toFixed(2)}`).join(" ");
+  const area = `${padding},${height - padding} ${line} ${width - padding},${height - padding}`;
+  return `
+    <defs>
+      <linearGradient id="area-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#d9b65b" stop-opacity=".22"/>
+        <stop offset="100%" stop-color="#d9b65b" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <polygon points="${area}" fill="url(#area-fill)"/>
+    <polyline points="${line}" fill="none" stroke="#d9b65b" stroke-width="2.2" vector-effect="non-scaling-stroke"/>
+    <circle cx="${x(points.length - 1)}" cy="${y(points.at(-1).totalValue)}" r="4" fill="#d9b65b" stroke="#141513" stroke-width="2"/>
+  `;
 }
 
 async function request(url, timeoutMs = 15_000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal });
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal
+    });
     const body = await response.json();
     if (!response.ok || body.error) throw new Error(body.error || `HTTP ${response.status}`);
     return body;
   } catch (error) {
-    if (error.name === "AbortError") throw new Error(`Request timed out after ${timeoutMs}ms`);
+    if (error.name === "AbortError") throw new Error(`请求超时（${timeoutMs}ms）`);
     throw error;
   } finally {
     clearTimeout(timer);
   }
 }
 
-function sourceItem(title, description, status) {
-  return `<div class="source-item"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span><span class="badge">${escapeHtml(status)}</span></div>`;
-}
-
-function definitionRows(values) {
-  return Object.entries(values).map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value ?? "—"))}</dd>`).join("");
-}
-
-function emptyRow(columns, text) {
-  return `<tr><td colspan="${columns}" class="muted">${escapeHtml(text)}</td></tr>`;
+function t(key) {
+  return translations[state.language]?.[key] || translations.zh[key] || key;
 }
 
 function money(value, currency) {
-  if (!Number.isFinite(Number(value))) return "—";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: currency || "GBP", maximumFractionDigits: 2 }).format(value);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "—";
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: currency || "GBP",
+    maximumFractionDigits: 2
+  }).format(parsed);
 }
 
-function formatNumber(value, digits = 2) {
-  return Number.isFinite(Number(value)) ? Number(value).toLocaleString("en-GB", { maximumFractionDigits: digits }) : "—";
+function signedMoney(value, currency) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "—";
+  return `${parsed > 0 ? "+" : ""}${money(parsed, currency)}`;
 }
 
-function formatNullable(value, digits = 2) {
-  return value === null || value === undefined ? "—" : formatNumber(value, digits);
+function signedPercent(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "—";
+  return `${parsed > 0 ? "+" : ""}${parsed.toFixed(2)}%`;
 }
 
 function formatPercent(value) {
-  return Number.isFinite(Number(value)) ? `${Number(value).toFixed(2)}%` : "—";
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${parsed.toFixed(2)}%` : "—";
+}
+
+function formatNumber(value, digits = 2) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed)
+    ? parsed.toLocaleString("en-GB", { maximumFractionDigits: digits })
+    : "—";
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(date);
 }
 
 function formatDateTime(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value || "Unavailable";
-  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function formatTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function number(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function valueClass(value) {
-  return Number(value) > 0 ? "positive" : Number(value) < 0 ? "negative" : "";
+  return number(value) > 0 ? "positive" : number(value) < 0 ? "negative" : "neutral";
 }
 
-function nearestIndex(values, target) {
-  if (!Number.isFinite(target)) return -1;
-  let bestIndex = -1;
-  let bestDistance = Infinity;
-  values.forEach((value, index) => {
-    const distance = Math.abs(value - target);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  });
-  return bestIndex;
+function setValueClass(element, value) {
+  element.classList.remove("positive", "negative", "neutral");
+  element.classList.add(valueClass(value));
+}
+
+function friendlyChartError(error) {
+  const message = String(error?.message || error || "");
+  if (/10m|1m|5m/.test(message)) {
+    return state.language === "zh"
+      ? "该分钟级行情需要可用数据源；可切换 15m、1h 或日线。"
+      : "This intraday interval needs an available provider. Try 15m, 1h or daily.";
+  }
+  return state.language === "zh"
+    ? "行情数据暂时不可用，Vesper 会自动保留并切换数据源。"
+    : "Market data is temporarily unavailable. Vesper will switch sources automatically.";
 }
 
 function escapeHtml(value) {
@@ -798,7 +1030,7 @@ function escapeHtml(value) {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
-    '"': "&quot;",
+    "\"": "&quot;",
     "'": "&#39;"
   })[character]);
 }

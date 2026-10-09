@@ -1,11 +1,11 @@
 {
-  "name": "vesper",
+  "name": "vigilalpha",
   "interface": {
-    "displayName": "Vesper"
+    "displayName": "VigilAlpha"
   },
   "plugins": [
     {
-      "name": "vesper-codex",
+      "name": "vigilalpha-codex",
       "source": {
         "source": "local",
         "path": "./plugins/vesper-codex"

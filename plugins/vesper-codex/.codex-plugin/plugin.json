@@ -1,7 +1,7 @@
 {
-  "name": "vesper-codex",
-  "version": "2.0.0",
-  "description": "Local-first, read-only Trading 212 portfolio intelligence, charts, risk review and daily briefs in Codex.",
+  "name": "vigilalpha-codex",
+  "version": "0.1.0-dev.10",
+  "description": "Local-first, read-only Trading 212 portfolio risk intelligence in Codex.",
   "author": {
     "name": "ChristanBai",
     "url": "https://github.com/ChristanBai"
@@ -20,9 +20,9 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Vesper",
-    "shortDescription": "Read-only Trading 212 intelligence",
-    "longDescription": "Connect a Trading 212 account through a local Keychain-backed MCP server. Review real holdings, Pies, execution markers, technical analysis, backtests, reports and a daily portfolio brief. The plugin has no order execution or account-write capability.",
+    "displayName": "VigilAlpha",
+    "shortDescription": "Trading 212 risk intelligence, read-only",
+    "longDescription": "Connect a Trading 212 Invest or Stocks ISA account through a local Keychain-backed MCP server. Review portfolio concentration, evidence quality, holding risk, strategy maturity and changes over time. VigilAlpha has no order execution or account-write capability.",
     "developerName": "ChristanBai",
     "category": "Finance",
     "capabilities": [
@@ -30,12 +30,12 @@
     ],
     "logo": "./assets/app-icon.png",
     "defaultPrompt": [
-      "Open my Vesper dashboard",
-      "Verify my Pies against real positions",
-      "Run my daily portfolio brief"
+      "检查我的 Trading 212 组合风险",
+      "和上次相比发生了什么变化？",
+      "分析 Nvidia 是否进入降低风险阶段"
     ],
     "websiteURL": "https://github.com/ChristanBai/Vesper",
-    "brandColor": "#1D1D1F",
+    "brandColor": "#0F172A",
     "screenshots": []
   },
   "mcpServers": "./.mcp.json"

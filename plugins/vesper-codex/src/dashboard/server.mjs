@@ -92,6 +92,12 @@ export class DashboardManager {
     if (request.method === "GET" && url.pathname === "/app.js") {
       return sendFile(response, "app.js", "text/javascript; charset=utf-8");
     }
+    if (request.method === "GET" && url.pathname === "/analytics.js") {
+      return sendFile(response, "analytics.js", "text/javascript; charset=utf-8");
+    }
+    if (request.method === "GET" && url.pathname === "/chart.js") {
+      return sendFile(response, "chart.js", "text/javascript; charset=utf-8");
+    }
     if (request.method === "GET" && url.pathname === "/api/status") {
       return sendJson(response, 200, {
         ...(await this.runtime.status()),
@@ -118,6 +124,13 @@ export class DashboardManager {
       const symbol = url.searchParams.get("symbol") || await this.firstHoldingSymbol();
       if (!symbol) return sendJson(response, 200, { symbol: null });
       return sendJson(response, 200, await this.runtime.quote(symbol));
+    }
+    if (request.method === "GET" && url.pathname === "/api/quotes") {
+      const symbols = (url.searchParams.get("symbols") || "")
+        .split(",")
+        .map((symbol) => symbol.trim())
+        .filter(Boolean);
+      return sendJson(response, 200, await this.runtime.quotes(symbols));
     }
     if (request.method === "GET" && url.pathname === "/api/trades") {
       const symbol = url.searchParams.get("symbol") || await this.firstHoldingSymbol();

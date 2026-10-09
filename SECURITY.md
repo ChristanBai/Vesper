@@ -1,17 +1,32 @@
 # Security Policy
 
+## Supported version
+
+Only the most recent VigilAlpha release receives security fixes. Development builds are not public
+release guarantees.
+
 ## Credentials
 
-Vesper never requires users to send Trading 212 credentials through a prompt or chat message. Use `npm run setup` in Terminal. The setup command validates the credentials and stores them in macOS Keychain.
+Use the VigilAlpha inline setup card. Its app-only credential tool validates Trading 212 read access
+before saving the key and secret to macOS Keychain. The model cannot invoke that tool, and secrets
+must never be pasted into chat, committed to Git, added to screenshots or included in logs.
+
+The Terminal setup command exists only as a compatibility fallback during development.
 
 ## Local data
 
-Account snapshots, reports and caches are local by default. Cloud sync is disabled unless explicitly configured. Never commit `.env` files, Keychain exports, generated caches, reports containing real holdings or diagnostic logs containing credentials.
+Configuration, normalized cache and derived snapshots stay on the Mac. VigilAlpha repairs its state
+directories to mode `0700` and private data files to mode `0600`. Cloud sync and telemetry are
+disabled. Upstream API response bodies are not copied into error messages.
 
 ## Read-only boundary
 
-The Trading 212 client rejects non-GET requests. Do not add order placement or account-write tools to the default package.
+The Trading 212 client accepts GET requests only. VigilAlpha has no order-placement, modification,
+cancellation or Pie-write tool. Never add a write endpoint to the default package.
 
-## Reporting
+## Reporting a vulnerability
 
-Do not open a public issue containing secrets or private account data. Revoke an exposed Trading 212 API key immediately in `Settings > API`.
+Use GitHub's private security-reporting channel when it is available, or contact the repository
+owner privately. Do not open a public issue containing a key, secret, account identifier, holdings,
+transactions or private diagnostic output. Revoke an exposed Trading 212 key immediately in
+Trading 212 `Settings > API`.

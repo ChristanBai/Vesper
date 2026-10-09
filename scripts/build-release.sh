@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+
+repository_root="$(cd "$(dirname "$0")/.." && pwd)"
+plugin_root="$repository_root/plugins/vesper-codex"
+version="$(cd "$plugin_root" && node -p "require('./package.json').version")"
+artifact_name="vigilalpha-codex-$version"
+temporary_root="$(mktemp -d)"
+stage_root="$temporary_root/$artifact_name"
+distribution_root="$repository_root/dist"
+
+cleanup() {
+  rm -rf "$temporary_root"
+}
+trap cleanup EXIT
+
+mkdir -p "$stage_root/.agents/plugins" "$stage_root/plugins" "$stage_root/docs" "$distribution_root"
+
+cp "$repository_root/.agents/plugins/marketplace.json" "$stage_root/.agents/plugins/marketplace.json"
+cp -R "$plugin_root" "$stage_root/plugins/vesper-codex"
+cp "$repository_root/README.md" "$stage_root/README.md"
+cp "$repository_root/LICENSE" "$stage_root/LICENSE"
+cp "$repository_root/SECURITY.md" "$stage_root/SECURITY.md"
+cp "$repository_root/CONTRIBUTING.md" "$stage_root/CONTRIBUTING.md"
+cp "$repository_root/CHANGELOG.md" "$stage_root/CHANGELOG.md"
+cp "$repository_root/docs/INSTALL.md" "$stage_root/docs/INSTALL.md"
+
+find "$stage_root" -name ".DS_Store" -delete
+
+archive="$distribution_root/$artifact_name.zip"
+checksum="$archive.sha256"
+rm -f "$archive" "$checksum"
+(
+  cd "$temporary_root"
+  /usr/bin/zip -X -q -r "$archive" "$artifact_name"
+)
+(
+  cd "$distribution_root"
+  shasum -a 256 "$(basename "$archive")" > "$(basename "$checksum")"
+)
+
+printf '%s\n' "$archive" "$checksum"

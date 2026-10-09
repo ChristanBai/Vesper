@@ -1,16 +1,16 @@
-# Vesper MCP
+# VigilAlpha MCP
 
-This directory contains the Vesper Codex plugin and MCP server.
+This directory contains the VigilAlpha Codex plugin and MCP server. The directory name remains
+`vesper-codex` during the one-release compatibility window so existing local work is not broken.
 
 See the repository root [README](../../README.md) for installation, setup, permissions, privacy and usage instructions.
 
-## Local setup
+## Secure setup
 
-```bash
-npm run setup
-```
+Use `setup_status` in Codex and complete the inline setup card.
 
-The setup command validates Trading 212 credentials before saving them to macOS Keychain.
+The app-only credential tool validates Trading 212 read access before saving secrets to macOS
+Keychain. `npm run setup` is a temporary compatibility fallback.
 
 ## Development
 
@@ -21,4 +21,4 @@ npm test
 
 ## Safety
 
-Vesper is read-only. It cannot place, modify or cancel orders.
+VigilAlpha is read-only. It cannot place, modify or cancel orders. Research signals are not orders.

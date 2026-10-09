@@ -1,14 +1,22 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { appendAudit, readAudit } from "../core/audit.mjs";
-import { publicConfig, readConfig, stateDirectory, updateConfig } from "../core/config.mjs";
+import { auditPath, cachePath, configPath, DEFAULT_STRATEGY_PARAMETERS, deleteCredential, ensurePrivateDirectory, publicConfig, readConfig, stateDirectory, storeCredential, updateConfig } from "../core/config.mjs";
+import { mapSummary } from "../core/portfolio.mjs";
+import { T212Client } from "../core/t212-client.mjs";
 import { DashboardManager } from "../dashboard/server.mjs";
 import { buildPortfolioBrief } from "../analysis/portfolio-brief.mjs";
 import { calculateTradeReview, createRuntime, tradeMarkers } from "../runtime.mjs";
+import { decisionReview, holdingReview, learningReview, portfolioReview, strategyReview } from "../vigilalpha/reviews.mjs";
+import { HOLDING_CHART_UI_URI, PORTFOLIO_FLOW_UI_URI, RISK_TIMELINE_UI_URI, SETUP_UI_URI } from "../vigilalpha/inline-ui.mjs";
+import { DerivedSnapshotStore } from "../vigilalpha/snapshot-store.mjs";
+import { ShadowLearningStore } from "../vigilalpha/learning-store.mjs";
 
 export function createToolRuntime({ env = process.env } = {}) {
   let runtimePromise = null;
   let dashboard = null;
+  const snapshotStore = new DerivedSnapshotStore({ env });
+  const shadowStore = new ShadowLearningStore({ env });
 
   async function runtime() {
     runtimePromise ||= createRuntime(env);
@@ -23,8 +31,36 @@ export function createToolRuntime({ env = process.env } = {}) {
   return {
     definitions: TOOL_DEFINITIONS,
     async call(name, args = {}) {
+      if (name === "configure_credentials") {
+        const result = await configureCredentialsTool(args, env);
+        runtimePromise = null;
+        return result;
+      }
+      if (name === "configure_preferences") {
+        const result = await configurePreferencesTool(args, env);
+        runtimePromise = null;
+        return result;
+      }
       const service = await runtime();
       switch (name) {
+        case "setup_status":
+          return setupStatusTool(service, snapshotStore);
+        case "portfolio_review":
+          return portfolioReview(service, snapshotStore, args);
+        case "holding_review":
+          return holdingReview(service, args.symbol, args);
+        case "strategy_review":
+          return strategyReview(service, args.symbol, args);
+        case "decision_review":
+          return decisionReview(service, shadowStore, args.symbol, args);
+        case "learning_review":
+          return learningReview(service, shadowStore);
+        case "portfolio_changes":
+          return snapshotStore.changes();
+        case "monitor_review":
+          return monitorReviewTool(service, snapshotStore, args);
+        case "local_data":
+          return localDataTool(snapshotStore, shadowStore, args, env);
         case "setup":
           return setupTool(service, args, env);
         case "start_vesper":
@@ -60,7 +96,100 @@ export function createToolRuntime({ env = process.env } = {}) {
   };
 }
 
+const LEGACY_TOOL_NAMES = new Set(["setup", "start_vesper", "holdings", "pies", "trades", "quote", "history", "dashboard", "news", "analysis", "backtest", "report", "daily_brief", "order_history"]);
+
 export const TOOL_DEFINITIONS = [
+  tool("setup_status", "Check VigilAlpha setup", "Check local account connection, Keychain availability, optional market source and derived snapshot status. This tool never returns credentials.", {
+    type: "object",
+    properties: {},
+    additionalProperties: false
+  }, true, false, { ui: { resourceUri: SETUP_UI_URI } }),
+  tool("portfolio_review", "Review portfolio risk", "Refresh the Trading 212 account and return a read-only portfolio risk review, risk vetoes, data quality and review queue.", {
+    type: "object",
+    properties: { refresh: { type: "boolean" }, saveSnapshot: { type: "boolean" } },
+    additionalProperties: false
+  }, true, false, { ui: { resourceUri: PORTFOLIO_FLOW_UI_URI } }),
+  tool("holding_review", "Review one holding", "Review one current holding using account facts, market evidence, six strategies, risk vetoes and a five-level research signal. Signals are not orders.", {
+    type: "object",
+    properties: {
+      symbol: { type: "string" },
+      refresh: { type: "boolean" },
+      range: { type: "string", enum: ["1M", "6M", "1Y", "MAX"] }
+    },
+    required: ["symbol"],
+    additionalProperties: false
+  }, true, false, { ui: { resourceUri: HOLDING_CHART_UI_URI } }),
+  tool("strategy_review", "Review strategy evidence", "Run versioned strategy modules and disclose source-linked PatternSpecs, chronological cost-aware validation, maturity, data gaps and consensus eligibility.", {
+    type: "object",
+    properties: { symbol: { type: "string" }, range: { type: "string", enum: ["1M", "6M", "1Y", "MAX"] } },
+    required: ["symbol"],
+    additionalProperties: false
+  }, true),
+  tool("decision_review", "Build a conditional shadow decision", "Build a read-only conditional plan for one current holding. Returns exact risk-target quantity when supported, but never places an order and never bypasses evidence gates.", {
+    type: "object",
+    properties: {
+      symbol: { type: "string" },
+      refresh: { type: "boolean" },
+      range: { type: "string", enum: ["6M", "1Y", "MAX"] },
+      record: { type: "boolean" }
+    },
+    required: ["symbol"],
+    additionalProperties: false
+  }, false),
+  tool("learning_review", "Review the shadow learning gate", "Evaluate eligible 20/60-session outcomes and show sanitized shadow-decision counts, failures and pending proposals. This tool cannot promote or modify a production strategy.", {
+    type: "object",
+    properties: {},
+    additionalProperties: false
+  }, false),
+  tool("portfolio_changes", "Compare saved risk snapshots", "Compare the two latest VigilAlpha-derived snapshots. It never fabricates history from the current account.", {
+    type: "object",
+    properties: {},
+    additionalProperties: false
+  }, true, false, { ui: { resourceUri: RISK_TIMELINE_UI_URI } }),
+  tool("monitor_review", "Run a quiet risk monitor", "Refresh the portfolio, save a derived snapshot and report whether a material risk change occurred. A scheduler should stay quiet when materialChange is false.", {
+    type: "object",
+    properties: { refresh: { type: "boolean" } },
+    additionalProperties: false
+  }, true, false, { ui: { resourceUri: RISK_TIMELINE_UI_URI } }),
+  tool("local_data", "Manage local VigilAlpha data", "Show local data status, export derived snapshots or delete local snapshots, configuration and Keychain credentials. Delete requires an exact confirmation phrase.", {
+    type: "object",
+    properties: {
+      action: { type: "string", enum: ["status", "export", "delete"] },
+      destination: { type: "string" },
+      confirmation: { type: "string" }
+    },
+    additionalProperties: false
+  }, false, true),
+  tool("configure_credentials", "Configure VigilAlpha credentials", "App-only credential setup. Validate Trading 212 read access before saving secrets to macOS Keychain. Never call this tool from model text.", {
+    type: "object",
+    properties: {
+      apiKey: { type: "string", minLength: 1 },
+      apiSecret: { type: "string", minLength: 1 },
+      marketDataKey: { type: "string" },
+      environment: { type: "string", enum: ["live", "demo"] },
+      profile: { type: "string", enum: ["conservative", "balanced", "growth"] }
+    },
+    required: ["apiKey", "apiSecret"],
+    additionalProperties: false
+  }, false, false, { ui: { visibility: ["app"] } }),
+  tool("configure_preferences", "Configure VigilAlpha strategy preferences", "App-only advanced settings. Validate and version user parameters or restore official defaults. Custom parameters remain unvalidated.", {
+    type: "object",
+    properties: {
+      reset: { type: "boolean" },
+      profile: { type: "string", enum: ["conservative", "balanced", "growth"] },
+      maxPositionWeightPercent: { type: "number" },
+      drawdownWarningPercent: { type: "number" },
+      fastPeriod: { type: "integer" },
+      slowPeriod: { type: "integer" },
+      momentumPeriod: { type: "integer" },
+      momentumPositiveThreshold: { type: "number" },
+      momentumNegativeThreshold: { type: "number" },
+      meanReversionPeriod: { type: "integer" },
+      meanReversionDeviationPercent: { type: "number" },
+      annualizedVolatilityPercent: { type: "number" }
+    },
+    additionalProperties: false
+  }, false, false, { ui: { visibility: ["app"] } }),
   tool("setup", "Check or update Vesper setup", "Use this first to verify Trading 212 credentials, account environment and cloud dashboard configuration. Vesper is always read-only.", {
     type: "object",
     properties: {
@@ -162,14 +291,25 @@ export const TOOL_DEFINITIONS = [
     properties: { limit: { type: "integer", minimum: 1, maximum: 500 } },
     additionalProperties: false
   }, true)
-];
+].map(markLegacyTool);
 
-function tool(name, title, description, inputSchema, readOnlyHint, destructiveHint = false) {
+function markLegacyTool(definition) {
+  if (!LEGACY_TOOL_NAMES.has(definition.name)) return definition;
+  return {
+    ...definition,
+    title: `[Deprecated compatibility] ${definition.title}`,
+    description: `Deprecated Vesper compatibility tool; remove after the first VigilAlpha compatibility release. ${definition.description}`,
+    _meta: { ...(definition._meta || {}), lifecycle: "deprecated" }
+  };
+}
+
+function tool(name, title, description, inputSchema, readOnlyHint, destructiveHint = false, meta = undefined) {
   return {
     name,
     title,
     description,
     inputSchema,
+    ...(meta ? { _meta: meta } : {}),
     annotations: {
       readOnlyHint,
       destructiveHint,
@@ -179,13 +319,223 @@ function tool(name, title, description, inputSchema, readOnlyHint, destructiveHi
   };
 }
 
-async function setupTool(service, args, env) {
-  const patch = {};
-  if (args.cloudUrl !== undefined || args.cloudSyncEnabled !== undefined) {
-    patch.cloud = {};
-    if (args.cloudUrl !== undefined) patch.cloud.url = args.cloudUrl;
-    if (args.cloudSyncEnabled !== undefined) patch.cloud.syncEnabled = args.cloudSyncEnabled;
+async function setupStatusTool(service, snapshotStore) {
+  const [status, localData] = await Promise.all([service.status(), snapshotStore.status()]);
+  return {
+    product: "VigilAlpha",
+    version: "0.1.0-dev.10",
+    configured: status.credentials.configured,
+    credentialSource: status.credentials.source,
+    accountVerifiedAt: status.config.accountVerifiedAt,
+    mode: "read-only",
+    keychain: { platformSupported: process.platform === "darwin", configured: status.credentials.source === "macos-keychain" },
+    marketData: { optionalProviderConfigured: status.credentials.twelveDataConfigured },
+    localData,
+    riskProfile: status.config.riskProfile || "balanced",
+    preferences: {
+      configVersion: status.config.configVersion,
+      parameterVersion: status.config.parameterVersion,
+      parameterValidation: status.config.parameterValidation,
+      riskLimits: status.config.riskLimits,
+      strategyParameters: status.config.strategyParameters
+    },
+    setupUi: SETUP_UI_URI
+  };
+}
+
+async function configureCredentialsTool(args, env) {
+  const environment = args.environment || "live";
+  const profile = args.profile || "balanced";
+  const apiKey = String(args.apiKey || "").trim();
+  const apiSecret = String(args.apiSecret || "").trim();
+  const marketDataKey = String(args.marketDataKey || "").trim();
+  if (!apiKey || !apiSecret) throw new Error("API Key and API Secret are both required.");
+  const client = new T212Client({ apiKey, apiSecret, environment, minimumIntervalMs: 0 });
+  let summary;
+  try {
+    summary = mapSummary(await client.accountSummary());
+  } catch (error) {
+    throw new Error(credentialVerificationMessage(error, environment));
   }
+  try {
+    await storeCredential("apiKey", apiKey, env);
+    await storeCredential("apiSecret", apiSecret, env);
+    if (marketDataKey) await storeCredential("twelveDataKey", marketDataKey, env);
+  } catch (error) {
+    await Promise.all([
+      deleteCredential("apiKey", env, { includeLegacy: false }),
+      deleteCredential("apiSecret", env, { includeLegacy: false }),
+      deleteCredential("twelveDataKey", env, { includeLegacy: false })
+    ]);
+    throw new Error(`Credential verification succeeded but secure Keychain storage failed: ${error.message}`);
+  }
+  const verifiedAt = new Date().toISOString();
+  await updateConfig({ environment, accountVerifiedAt: verifiedAt, riskProfile: profile, riskLimits: limitsForProfile(profile), readOnly: true, cloud: { url: null, syncEnabled: false } }, env);
+  return {
+    configured: true,
+    verifiedAt,
+    account: { currency: summary.currency || null },
+    marketDataConfigured: Boolean(marketDataKey),
+    mode: "read-only"
+  };
+}
+
+export function credentialVerificationMessage(error, environment = "live") {
+  const selected = environment === "demo" ? "Demo" : "Live";
+  if (error?.status === 401) {
+    return `Trading 212 returned 401. The Key/Secret pair is invalid for the selected ${selected} environment. Credentials were not saved.`;
+  }
+  if (error?.status === 403) {
+    return `Trading 212 returned 403. Confirm this is an Invest or Stocks ISA account, the key permits account-summary reads, and any IP restriction allows this Mac. Credentials were not saved.`;
+  }
+  if (error?.status === 429) {
+    return "Trading 212 rate limit was reached. Wait at least 5 seconds and retry. Credentials were not saved.";
+  }
+  if (error?.status === 408 || /timed out/i.test(error?.message || "")) {
+    return "Trading 212 verification timed out. Check the network and retry; credentials were not saved.";
+  }
+  return "Trading 212 could not be reached for read-only verification. Check the selected Live/Demo environment and network, then retry. Credentials were not saved.";
+}
+
+async function configurePreferencesTool(args, env) {
+  const current = await readConfig(env);
+  if (args.reset) {
+    const next = await updateConfig({
+      riskProfile: "balanced",
+      riskLimits: limitsForProfile("balanced"),
+      strategyParameters: DEFAULT_STRATEGY_PARAMETERS,
+      parameterVersion: "vigilalpha.defaults.2026-10-06",
+      parameterValidation: "official_default"
+    }, env);
+    return { updated: true, reset: true, config: publicConfig(next), differences: [] };
+  }
+  const profile = args.profile || current.riskProfile || "balanced";
+  const riskLimits = args.profile
+    ? { ...current.riskLimits, ...limitsForProfile(profile) }
+    : { ...current.riskLimits };
+  if (args.maxPositionWeightPercent !== undefined) riskLimits.maxPositionWeightPercent = inRange(args.maxPositionWeightPercent, 1, 100, "maxPositionWeightPercent");
+  if (args.drawdownWarningPercent !== undefined) riskLimits.drawdownWarningPercent = inRange(args.drawdownWarningPercent, 1, 95, "drawdownWarningPercent");
+  const strategyParameters = {
+    trend: {
+      fastPeriod: integerInRange(args.fastPeriod ?? current.strategyParameters.trend.fastPeriod, 2, 100, "fastPeriod"),
+      slowPeriod: integerInRange(args.slowPeriod ?? current.strategyParameters.trend.slowPeriod, 3, 250, "slowPeriod")
+    },
+    momentum: {
+      period: integerInRange(args.momentumPeriod ?? current.strategyParameters.momentum.period, 2, 100, "momentumPeriod"),
+      positiveThreshold: inRange(args.momentumPositiveThreshold ?? current.strategyParameters.momentum.positiveThreshold, 50, 99, "momentumPositiveThreshold"),
+      negativeThreshold: inRange(args.momentumNegativeThreshold ?? current.strategyParameters.momentum.negativeThreshold, 1, 50, "momentumNegativeThreshold")
+    },
+    meanReversion: {
+      period: integerInRange(args.meanReversionPeriod ?? current.strategyParameters.meanReversion.period, 2, 250, "meanReversionPeriod"),
+      deviationPercent: inRange(args.meanReversionDeviationPercent ?? current.strategyParameters.meanReversion.deviationPercent, 0.1, 100, "meanReversionDeviationPercent")
+    },
+    volatilityDrawdown: {
+      annualizedVolatilityPercent: inRange(args.annualizedVolatilityPercent ?? current.strategyParameters.volatilityDrawdown.annualizedVolatilityPercent, 1, 500, "annualizedVolatilityPercent")
+    }
+  };
+  if (strategyParameters.trend.fastPeriod >= strategyParameters.trend.slowPeriod) throw new Error("fastPeriod must be lower than slowPeriod.");
+  if (strategyParameters.momentum.negativeThreshold >= strategyParameters.momentum.positiveThreshold) throw new Error("momentumNegativeThreshold must be lower than momentumPositiveThreshold.");
+  const parameterVersion = `vigilalpha.user.${new Date().toISOString()}`;
+  const next = await updateConfig({ riskProfile: profile, riskLimits, strategyParameters, parameterVersion, parameterValidation: "user_modified_unvalidated" }, env);
+  return {
+    updated: true,
+    reset: false,
+    config: publicConfig(next),
+    differences: parameterDifferences(next),
+    warning: "Custom parameters are unvalidated and do not upgrade strategy maturity."
+  };
+}
+
+function parameterDifferences(config) {
+  const differences = [];
+  for (const [group, values] of Object.entries(config.strategyParameters)) {
+    for (const [key, value] of Object.entries(values)) {
+      const official = DEFAULT_STRATEGY_PARAMETERS[group][key];
+      if (value !== official) differences.push({ field: `${group}.${key}`, official, current: value });
+    }
+  }
+  return differences;
+}
+
+function inRange(value, minimum, maximum, name) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < minimum || parsed > maximum) throw new Error(`${name} must be between ${minimum} and ${maximum}.`);
+  return parsed;
+}
+
+function integerInRange(value, minimum, maximum, name) {
+  const parsed = inRange(value, minimum, maximum, name);
+  if (!Number.isInteger(parsed)) throw new Error(`${name} must be an integer.`);
+  return parsed;
+}
+
+async function monitorReviewTool(service, snapshotStore, args) {
+  const before = await snapshotStore.status();
+  const review = await portfolioReview(service, snapshotStore, { refresh: args.refresh !== false, saveSnapshot: true });
+  const changes = await snapshotStore.changes();
+  if (before.snapshotCount === 0) {
+    return { status: "BASELINE_CREATED", materialChange: false, notify: false, sourceCutoff: review.sourceCutoff, changes: [] };
+  }
+  return {
+    status: changes.status,
+    materialChange: changes.materialChange,
+    notify: changes.materialChange,
+    sourceCutoff: review.sourceCutoff,
+    changes: changes.changes
+  };
+}
+
+async function localDataTool(snapshotStore, shadowStore, args, env) {
+  const action = args.action || "status";
+  if (action === "status") return { action, ...(await snapshotStore.status()), shadowLearning: await shadowStore.review() };
+  if (action === "export") {
+    if (!args.destination) throw new Error("An absolute destination is required for export.");
+    if (!path.isAbsolute(args.destination)) throw new Error("Export destination must be an absolute path.");
+    const [snapshots, shadowLearningRecords] = await Promise.all([snapshotStore.readAll(), shadowStore.readAll()]);
+    await mkdir(path.dirname(args.destination), { recursive: true, mode: 0o700 });
+    try {
+      await writeFile(args.destination, `${JSON.stringify({
+        version: "vigilalpha.local-export.v2",
+        exportedAt: new Date().toISOString(),
+        derivedSnapshots: snapshots,
+        shadowLearningRecords
+      }, null, 2)}\n`, { mode: 0o600, flag: "wx" });
+    } catch (error) {
+      if (error?.code === "EEXIST") throw new Error("Export destination already exists; choose a new file path.");
+      throw error;
+    }
+    return { action, exported: true, destination: args.destination, snapshotCount: snapshots.length, shadowRecordCount: shadowLearningRecords.length };
+  }
+  if (action === "delete") {
+    if (args.confirmation !== "DELETE_LOCAL_DATA") throw new Error("Deletion requires confirmation: DELETE_LOCAL_DATA");
+    const [snapshots, shadow] = await Promise.all([snapshotStore.deleteAll(), shadowStore.deleteAll()]);
+    await Promise.all([deleteCredential("apiKey", env), deleteCredential("apiSecret", env), deleteCredential("twelveDataKey", env)]);
+    await Promise.all([
+      rm(configPath(env), { force: true }),
+      rm(cachePath(env), { force: true }),
+      rm(auditPath(env), { force: true }),
+      rm(path.join(stateDirectory(env), "reports"), { recursive: true, force: true })
+    ]);
+    return { action, deleted: true, deletedScope: [...snapshots.deletedScope, ...shadow.deletedScope, "normalized current cache", "saved reports", "configuration", "local audit", "Keychain credentials"] };
+  }
+  throw new Error(`Unknown local data action: ${action}`);
+}
+
+function limitsForProfile(profile) {
+  if (profile === "conservative") {
+    return { maxPositionWeightPercent: 15, maxSectorWeightPercent: 30, drawdownWarningPercent: 10, defaultStopLossPercent: 8, minimumConfidence: 0.7 };
+  }
+  if (profile === "growth") {
+    return { maxPositionWeightPercent: 25, maxSectorWeightPercent: 50, drawdownWarningPercent: 20, defaultStopLossPercent: 12, minimumConfidence: 0.55 };
+  }
+  return { maxPositionWeightPercent: 20, maxSectorWeightPercent: 40, drawdownWarningPercent: 15, defaultStopLossPercent: 10, minimumConfidence: 0.6 };
+}
+
+async function setupTool(service, args, env) {
+  if (args.cloudUrl !== undefined || args.cloudSyncEnabled !== undefined) {
+    throw new Error("Cloud sync is disabled in VigilAlpha. The deprecated Vesper setup tool cannot enable it.");
+  }
+  const patch = {};
   const config = Object.keys(patch).length ? await updateConfig(patch, env) : await readConfig(env);
   if (Object.keys(patch).length) {
     await appendAudit({ type: "setup_updated", patch: { ...patch, cloud: patch.cloud } }, env);
@@ -308,9 +658,10 @@ async function reportTool(service, args, env) {
   let file = null;
   if (args.save) {
     const directory = path.join(stateDirectory(env), "reports");
-    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await ensurePrivateDirectory(directory);
     file = path.join(directory, `${safeFilename(args.symbol)}-${new Date().toISOString().replace(/[:.]/g, "-")}.md`);
     await writeFile(file, markdown, { mode: 0o600 });
+    await chmod(file, 0o600);
   }
   return { symbol: args.symbol, markdown, file };
 }

@@ -94,3 +94,37 @@ test("uses account-currency wallet values for pence-listed positions", () => {
   assert.equal(position.marketValue, 39.13);
   assert.equal(position.unrealizedPnLPercent, -0.7 / 39.83);
 });
+
+test("preserves official fill wallet impact and keeps corporate actions distinct", () => {
+  const [trade, split] = mapOrders([
+    {
+      id: "order-1", ticker: "AAPL_US_EQ", side: "SELL", status: "FILLED",
+      fill: { id: "fill-1", type: "TRADE", quantity: 2, price: 110, filledAt: "2026-10-01T10:00:00Z", walletImpact: {
+        currency: "GBP", fxRate: 0.75, netValue: 163.8, realisedProfitLoss: 12.5,
+        taxes: [{ name: "tax", amount: 1.2 }], fees: [{ amount: 0.4 }]
+      } }
+    },
+    {
+      id: "order-2", ticker: "AAPL_US_EQ", side: "UNKNOWN", status: "FILLED",
+      fill: { id: "fill-2", type: "STOCK_SPLIT", quantity: 4, price: 0, filledAt: "2026-10-02T10:00:00Z", walletImpact: { currency: "GBP" } }
+    }
+  ]);
+  assert.equal(trade.fillId, "fill-1");
+  assert.equal(trade.isTrade, true);
+  assert.equal(trade.fxRate, 0.75);
+  assert.equal(trade.netValue, 163.8);
+  assert.equal(trade.taxes, 1.2);
+  assert.equal(trade.fees, 0.4);
+  assert.equal(split.fillType, "STOCK_SPLIT");
+  assert.equal(split.isTrade, false);
+});
+
+test("missing wallet impact remains unknown instead of becoming zero", () => {
+  const [trade] = mapOrders([{
+    id: "order-missing", ticker: "AAPL_US_EQ", side: "SELL", status: "FILLED",
+    fill: { id: "fill-missing", type: "TRADE", quantity: 1, price: 100, filledAt: "2026-10-03T10:00:00Z", walletImpact: { realisedProfitLoss: null, fxRate: null, netValue: null } }
+  }]);
+  assert.equal(trade.realisedProfitLoss, null);
+  assert.equal(trade.fxRate, null);
+  assert.equal(trade.netValue, null);
+});

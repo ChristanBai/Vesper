@@ -120,10 +120,9 @@ export class T212Client {
     }
 
     if (!response.ok) {
-      const text = await response.text().catch(() => "");
       const retryAfter = Number(response.headers.get("retry-after") || 0) * 1000;
-      const suffix = text ? `: ${safeErrorText(text)}` : "";
-      throw new T212Error(`Trading 212 API returned HTTP ${response.status}${suffix}`, {
+      await response.body?.cancel().catch(() => {});
+      throw new T212Error(`Trading 212 API returned HTTP ${response.status}.`, {
         status: response.status,
         retryAfterMs: retryAfter || undefined
       });
@@ -139,10 +138,6 @@ export function throttleIntervalMs(pathname) {
     if (pattern.test(pathname)) return intervalMs;
   }
   return 1_100;
-}
-
-function safeErrorText(text) {
-  return text.replace(/[A-Za-z0-9+/=_-]{32,}/g, "[redacted]").slice(0, 500);
 }
 
 export function normalizeOrderPage(payload) {

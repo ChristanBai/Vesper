@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "vesper": {
+    "vigilalpha": {
       "command": "node",
       "args": [
         "scripts/vesper-mcp.mjs"
@@ -11,6 +11,7 @@
         "T212_API_SECRET",
         "FINNHUB_API_KEY",
         "TWELVE_DATA_API_KEY",
+        "VIGILALPHA_STATE_DIR",
         "VESPER_STATE_DIR",
         "VESPER_CLOUD_URL",
         "VESPER_DASHBOARD_TOKEN",

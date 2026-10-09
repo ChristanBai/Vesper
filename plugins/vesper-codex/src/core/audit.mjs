@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { appendFile, chmod, readFile } from "node:fs/promises";
 import { auditPath, ensureStateDirectory } from "./config.mjs";
 
 export async function appendAudit(event, env = process.env) {
@@ -10,6 +10,7 @@ export async function appendAudit(event, env = process.env) {
     ...redact(event)
   };
   await appendFile(auditPath(env), `${JSON.stringify(record)}\n`, { mode: 0o600 });
+  await chmod(auditPath(env), 0o600);
   return record;
 }
 

@@ -40,6 +40,8 @@ export function mapPositions(payload) {
       symbol: normalizeTicker(ticker),
       name: position?.instrument?.name || null,
       instrumentCurrency: position?.instrument?.currency || null,
+      instrumentType: position?.instrument?.type || null,
+      exchange: position?.instrument?.exchange || null,
       accountCurrency: position?.walletImpact?.currency || null,
       quantity,
       averagePricePaid,
@@ -82,11 +84,20 @@ export function mapPies(payload) {
 export function mapOrders(payload) {
   return array(payload).map((order) => {
     const fill = order?.fill || {};
+    const walletImpact = fill?.walletImpact || {};
+    const fillType = String(fill?.type || "TRADE").toUpperCase();
     const filledQuantity = Math.abs(number(order?.filledQuantity ?? fill?.quantity ?? order?.quantity));
     const filledValue = number(order?.filledValue);
     const price = number(order?.fillPrice ?? fill?.price ?? order?.price) || (filledQuantity ? filledValue / filledQuantity : 0);
+    const orderedAt = normalizeTimestamp(order?.orderedAt || order?.createdAt || order?.dateCreated);
+    const filledAt = normalizeTimestamp(order?.filledAt || fill?.filledAt || order?.dateExecuted);
     return {
       id: String(order?.id ?? order?.orderId ?? ""),
+      orderId: String(order?.id ?? order?.orderId ?? ""),
+      fillId: String(fill?.id ?? fill?.tradeId ?? order?.tradeId ?? ""),
+      tradeId: String(fill?.tradeId ?? order?.tradeId ?? fill?.id ?? ""),
+      fillType,
+      isTrade: fillType === "TRADE",
       ticker: order?.ticker || order?.instrument?.ticker || "",
       name: order?.instrument?.name || null,
       symbol: normalizeTicker(order?.ticker || order?.instrument?.ticker),
@@ -97,12 +108,17 @@ export function mapOrders(payload) {
       filledQuantity,
       price,
       filledValue: filledValue || filledQuantity * price,
-      currency: order?.currency || fill?.walletImpact?.currency || null,
-      orderedAt: order?.orderedAt || order?.createdAt || order?.dateCreated || null,
-      filledAt: order?.filledAt || fill?.filledAt || order?.dateExecuted || null,
-      realisedProfitLoss: numberOrNull(fill?.walletImpact?.realisedProfitLoss)
+      currency: order?.currency || walletImpact?.currency || null,
+      fees: extractFees(order, fill),
+      taxes: extractTaxes(walletImpact),
+      fxRate: numberOrNull(walletImpact?.fxRate),
+      netValue: numberOrNull(walletImpact?.netValue),
+      orderedAt,
+      filledAt,
+      realisedProfitLoss: numberOrNull(walletImpact?.realisedProfitLoss),
+      source: "trading212"
     };
-  }).filter((order) => order.filledQuantity > 0 && order.price > 0);
+  }).filter((order) => order.filledQuantity > 0 && (order.price > 0 || !order.isTrade));
 }
 
 export function mapTransactions(payload) {
@@ -168,8 +184,48 @@ function number(value) {
 }
 
 function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeTimestamp(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
+}
+
+function extractFees(order, fill) {
+  const primary = order?.fees ?? fill?.fees ?? fill?.walletImpact?.fees;
+  if (primary !== null && primary !== undefined) {
+    const primaryTotal = sumCostValue(primary);
+    if (primaryTotal > 0) return primaryTotal;
+  }
+  const fallback = [
+    order?.fee,
+    order?.commission,
+    fill?.fee,
+    fill?.commission,
+    fill?.walletImpact?.fee,
+    fill?.walletImpact?.commission,
+    fill?.walletImpact?.stampDuty,
+    fill?.walletImpact?.exchangeFee,
+    fill?.walletImpact?.finraFee
+  ];
+  const total = fallback.reduce((sum, candidate) => sum + sumCostValue(candidate), 0);
+  return total || null;
+}
+
+function sumCostValue(value) {
+  if (Array.isArray(value)) return value.reduce((sum, item) => sum + Math.abs(number(item?.amount ?? item?.value ?? item)), 0);
+  return Math.abs(number(value));
+}
+
+function extractTaxes(walletImpact) {
+  const taxes = array(walletImpact?.taxes);
+  if (!taxes.length) return null;
+  const total = taxes.reduce((sum, item) => sum + Math.abs(number(item?.amount ?? item?.value ?? item)), 0);
+  return total || null;
 }
 
 function round(value, places) {

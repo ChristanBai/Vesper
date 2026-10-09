@@ -1,7 +1,7 @@
 {
-  "name": "vesper-codex",
-  "version": "2.0.0",
-  "description": "Local-first Trading 212 intelligence MCP and dashboard for Codex",
+  "name": "vigilalpha-codex",
+  "version": "0.1.0-dev.10",
+  "description": "Local-first, read-only Trading 212 risk intelligence plugin for Codex",
   "type": "module",
   "private": true,
   "author": "ChristanBai",

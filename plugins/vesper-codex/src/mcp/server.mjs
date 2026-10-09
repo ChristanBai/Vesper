@@ -1,7 +1,8 @@
 import { createToolRuntime } from "./tools.mjs";
+import { listInlineResources, readInlineResource, readVisualizationResource } from "../vigilalpha/inline-ui.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
-const SERVER_VERSION = "2.0.0";
+const SERVER_VERSION = "0.1.0-dev.10";
 
 export async function runStdioServer({ env = process.env } = {}) {
   const toolRuntime = createToolRuntime({ env });
@@ -48,10 +49,10 @@ async function handleMessage(raw, toolRuntime) {
             logging: {}
           },
           serverInfo: {
-            name: "vesper-codex",
+            name: "vigilalpha",
             version: SERVER_VERSION
           },
-          instructions: "Vesper is local-first and strictly read-only. It cannot place, modify or cancel orders. Read account data before analysis. Keep API secrets in Keychain or environment variables, never in prompts or tool results. Label quote providers and delays. State that analysis is not investment advice."
+          instructions: "VigilAlpha is local-first and strictly read-only. It cannot place, modify or cancel orders. Use setup_status first, then portfolio_review before holding conclusions. Never ask for or expose API secrets in model-visible text. Keep risk vetoes separate from research consensus, label data cutoffs and state that signals are not orders or guarantees. Legacy Vesper tools are deprecated compatibility interfaces for one release."
         };
         break;
       case "ping":
@@ -76,24 +77,27 @@ async function handleMessage(raw, toolRuntime) {
       }
       case "resources/list":
         result = {
-          resources: [{
-            uri: "vesper://status",
-            name: "Vesper status",
-            description: "Local Vesper MCP status and setup instructions.",
-            mimeType: "application/json"
-          }]
+          resources: [
+            ...listInlineResources(),
+            {
+              uri: "vigilalpha://status",
+              name: "VigilAlpha status",
+              description: "Local VigilAlpha MCP status and setup instructions.",
+              mimeType: "application/json"
+            }
+          ]
         };
         break;
-      case "resources/read":
-        if (params.uri !== "vesper://status") throw new RpcError(-32602, "Unknown resource");
-        result = {
-          contents: [{
-            uri: "vesper://status",
-            mimeType: "application/json",
-            text: JSON.stringify(await toolRuntime.call("setup", {}), null, 2)
-          }]
-        };
+      case "resources/read": {
+        const inline = readInlineResource(params.uri) || readVisualizationResource(params.uri);
+        if (inline) {
+          result = { contents: [inline] };
+          break;
+        }
+        if (params.uri !== "vigilalpha://status") throw new RpcError(-32602, "Unknown resource");
+        result = { contents: [{ uri: "vigilalpha://status", mimeType: "application/json", text: JSON.stringify(await toolRuntime.call("setup_status", {}), null, 2) }] };
         break;
+      }
       case "logging/setLevel":
         result = {};
         break;
@@ -114,6 +118,16 @@ async function handleMessage(raw, toolRuntime) {
 }
 
 function summarize(name, data) {
+  if (name === "setup_status") return `VigilAlpha ${data.configured ? "ready" : "needs setup"}; mode ${data.mode}; saved snapshots ${data.localData?.snapshotCount || 0}.`;
+  if (name === "portfolio_review") return `VigilAlpha portfolio review at ${data.sourceCutoff || "unknown cutoff"}: ${data.summary?.totalValue ?? "unknown"} ${data.summary?.currency || ""}; signal ${data.signal}; risk veto ${data.riskVeto?.active ? "active" : "clear"}.`;
+  if (name === "holding_review") return `${data.holding?.symbol || "Holding"}: ${data.signal}; risk veto ${data.riskVeto?.active ? "active" : "clear"}; consensus ${data.strategies?.consensus?.direction || "unavailable"}.`;
+  if (name === "strategy_review") return `${data.symbol}: ${data.consensus?.direction || "NO_CONSENSUS"}; ${data.strategies?.length || 0} strategy modules; experimental strategies have zero weight.`;
+  if (name === "decision_review") return `${data.holding?.symbol || "Holding"}: shadow action ${data.decision?.action || "WAIT"}; quantity ${data.decision?.quantity ?? 0}; execution authority none.`;
+  if (name === "learning_review") return `Shadow learning: ${data.shadowDecisionCount || 0} decisions, ${data.evaluableDecisionCount || 0} evaluable; automatic promotion disabled.`;
+  if (name === "portfolio_changes" || name === "monitor_review") return `Portfolio changes: ${data.status}; material change ${Boolean(data.materialChange)}.`;
+  if (name === "local_data") return `Local data ${data.action || "status"}: ${data.deleted ? "deleted" : data.exported ? "exported" : `${data.snapshotCount || 0} snapshots`}.`;
+  if (name === "configure_credentials") return `VigilAlpha configuration ${data.configured ? "verified and saved" : "not saved"}; mode ${data.mode}.`;
+  if (name === "configure_preferences") return `VigilAlpha preferences ${data.updated ? "saved" : "not changed"}; ${data.reset ? "official defaults restored" : `${data.differences?.length || 0} differences from official defaults`}.`;
   if (name === "report") return data.markdown;
   if (name === "daily_brief") return data.markdown;
   if (name === "start_vesper") return `Vesper ${data.ready ? "ready" : "needs setup"}: ${data.positionCount} positions, ${data.orderCount} orders, order history ${data.orderHistoryStatus}. Dashboard: ${data.localUrl || data.url || "unavailable"}.`;

@@ -1,15 +1,19 @@
-name: Vesper Codex CI
+name: VigilAlpha CI
 
 on:
   workflow_dispatch:
   push:
     paths:
       - "plugins/vesper-codex/**"
-      - ".github/workflows/vesper-codex-ci.yml"
+      - "scripts/build-release.sh"
+      - ".agents/plugins/marketplace.json"
+      - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "plugins/vesper-codex/**"
-      - ".github/workflows/vesper-codex-ci.yml"
+      - "scripts/build-release.sh"
+      - ".agents/plugins/marketplace.json"
+      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read
@@ -29,3 +33,13 @@ jobs:
         run: npm run check
       - name: Test
         run: npm test
+      - name: Build installable artifact
+        working-directory: .
+        run: ./scripts/build-release.sh
+      - name: Upload installable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vigilalpha-codex
+          path: |
+            dist/*.zip
+            dist/*.sha256

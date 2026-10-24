@@ -333,7 +333,7 @@ async function setupStatusTool(service, snapshotStore) {
   const [status, localData] = await Promise.all([service.status(), snapshotStore.status()]);
   return {
     product: "VigilAlpha",
-    version: "0.1.0-dev.12",
+    version: "0.1.0-dev.13",
     configured: status.credentials.configured,
     credentialSource: status.credentials.source,
     accountVerifiedAt: status.config.accountVerifiedAt,

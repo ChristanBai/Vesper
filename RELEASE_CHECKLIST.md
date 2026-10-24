@@ -1,4 +1,24 @@
-# VigilAlpha dev.12 prerelease and historical dev.11 acceptance
+# VigilAlpha dev.13 prerelease and historical acceptance
+
+## Current dev.13 gates (2026-10-24)
+
+- [x] Source: 55 JavaScript syntax checks and 88/88 tests, including chart geometry/fill-date regressions.
+- [x] Chinese and English introductions, actual synthetic UI screenshots and primary-source research framework.
+- [x] Local browser: chart controls, allocation, missing data, 390 px width and readable coordinate scaling.
+- [x] Real mounted dev.11 secure-card status button clicked successfully; this does not accept a new version.
+- [ ] Exact dev.13 commit clean clone, extracted package and security-pattern checks.
+- [ ] Hosted CI and public dev.13 download/startup verification.
+- [ ] New installed dev.13 mounting and actual Codex holding UI accepted.
+- [ ] Trading 212 browser reconciliation and ChatGPT sidebar accepted; browser currently requires login.
+- [ ] Figma concepts repaired and style accepted; first visual gate failed and Starter tool limit prevents repair.
+
+This source checklist records pre-publication state. The release notes record the exact published
+commit and later download/CI evidence. Open host and strategy gates are not implied by publication.
+
+## Historical dev.12 publication result (2026-10-24)
+
+Published commit `0b31262127926d7a6287b0faf0a0fd8876f83917`; clean source/artifact 86 tests,
+54 syntax checks, hosted CI and public ZIP checksum/startup verified. See the dev.12 Release.
 
 ## Current dev.12 publication gates (2026-10-24)
 

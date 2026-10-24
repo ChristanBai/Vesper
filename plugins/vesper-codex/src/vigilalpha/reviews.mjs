@@ -6,6 +6,15 @@ import { buildShadowDecision } from "./decision.mjs";
 import { PATTERN_SPECS, patternRegistry } from "./research.mjs";
 import { validatePattern } from "./validation.mjs";
 import { conditionalPatterns } from "./conditional-patterns.mjs";
+import { eventReview } from "./events.mjs";
+
+function scheduleContext() {
+  const review = eventReview();
+  return { status: review.status, checkedAt: review.checkedAt, requiresRefresh: review.requiresRefresh,
+    isLive: false, predictsResults: false, coverageComplete: false,
+    events: review.events.slice(0, 3).map(event => ({ title: event.title,
+      date: event.localSchedule.startDate || event.localSchedule.date, sourceUrl: event.source.url })) };
+}
 
 export async function portfolioReview(service, store, { refresh = true, saveSnapshot = true } = {}) {
   const snapshot = await service.snapshot({ force: Boolean(refresh) });
@@ -90,10 +99,12 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
     },
     strategies: strategy,
     conditionalResearch,
+    eventContext: scheduleContext(),
     riskVeto,
     signal: selectSignal(riskVeto, strategy.consensus),
     chart: {
-      status: history ? "AVAILABLE" : "UNAVAILABLE",
+      status: history?.bars?.length ? "AVAILABLE" : "UNAVAILABLE",
+      currency: history?.currency || null,
       bars: history?.bars || [],
       averageCost: Number.isFinite(Number(position.averagePricePaid)) ? Number(position.averagePricePaid) : null,
       executionMarkers: tradeMarkers(snapshot.orders || [], normalized),
@@ -198,9 +209,9 @@ export async function marketReview(service, symbol, { range = "1Y", includeChart
     evidence: { market: { source: history.source || "unknown", range, cutoff: history.bars?.at(-1)?.time || null } },
     marketData: { source: history.source || "unknown", currency: history.currency || null,
       interval: history.interval, sourceCutoff: history.bars?.at(-1)?.time || null },
-    conditionalResearch, researchSources: patternRegistry().sources,
+    conditionalResearch, eventContext: scheduleContext(), researchSources: patternRegistry().sources,
     chart: { status: includeChart ? (history.bars?.length ? "AVAILABLE" : "UNAVAILABLE") : "NOT_REQUESTED",
-      bars: includeChart ? (history.bars || []).slice(-120) : [],
+      currency: history.currency || null, bars: includeChart ? (history.bars || []).slice(-120) : [],
       strategyMarkers: includeChart ? conditionalResearch.markers : [], executionMarkers: [], averageCost: null },
     executionAuthority: "NONE",
     disclaimer: "No account facts, position sizing or production signal is inferred from a browser symbol."

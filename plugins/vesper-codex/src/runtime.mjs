@@ -42,7 +42,7 @@ export async function createRuntime(env = process.env) {
     async status() {
       return {
         plugin: "vigilalpha-codex",
-        version: "0.1.0-dev.12",
+        version: "0.1.0-dev.13",
         credentials,
         config: publicConfig(config),
         dataSources: {

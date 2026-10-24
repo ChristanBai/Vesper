@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-dev.13 — 2026-10-24
+
+### 中文
+
+- 图表优先工作台：浅深系统主题、K线/折线切换、日线窗口、成交/成本/实验候选独立开关，证据按需展开。
+- 桑基式配置暴露图，明确不是现金流；真实成交按同一 UTC 日期匹配，不移动到下一根 K 线。
+- 单股研究联动有核验日期的官方事件背景；结果未知、过期需刷新，不生成预测。
+- 中英文产品说明、实际合成界面截图、学术/商业原始来源框架与可独立启动的合成预览。
+- 更正 Momentum Crashes 原始论文编号；三类规则仍属实验，未激活新生产策略。
+- 完整 Chrome/ChatGPT 侧栏、新版本真实宿主挂载及账户网页对账仍未验收；不是成熟正式版。
+
+### English
+
+- Replace stacked visual cards with a chart-first workspace, adaptive light/dark appearance,
+  candle/line and daily-window controls, independent fill/cost/research toggles and disclosure sections.
+- Show allocation exposure as ribbons, never cash flow; match intraday fills to the same UTC date.
+- Join dated official event context to holding/public-symbol research without predicting outcomes.
+- Add Chinese/English introductions, actual synthetic UI imagery, primary-source research framework
+  and account-free local preview. Correct the Momentum Crashes paper reference.
+- Experimental rules retain zero production weight. Full browser/sidebar integration, current-host
+  mounting and broker reconciliation remain open, separate from downloadable software publication.
+
 ## 0.1.0-dev.12 — 2026-10-24
 
 - Add an official-schedule snapshot tool with future-event windows, time zones, source dates,

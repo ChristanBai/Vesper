@@ -1,18 +1,43 @@
 # VigilAlpha
 
+**English** · [简体中文](README.zh-CN.md)
+
 ![VigilAlpha logo](plugins/vesper-codex/assets/app-icon.svg)
 
 VigilAlpha is a local-first, strictly read-only Trading 212 risk-review plugin for Codex. It brings
 account facts, transaction markers, data-quality checks, strategy evidence and conditional risk
 decisions into one conversation. It cannot place, change or cancel an order.
 
-Current development version: `0.1.0-dev.12` · License: MIT · Platform: macOS first
+Current development version: `0.1.0-dev.13` · License: MIT · Platform: macOS first
 
 > Development prerelease: conditional research is experimental and account/UI acceptance is still
 > incomplete. Public `v1.0` and plugin-directory approval remain separate gates. No strategy here
 > is a promise of investment profit.
 
 ## What it does
+
+Start with portfolio exposure, inspect one holding, review the dated evidence and decide for yourself.
+The chart-first workspace supports candles/lines, available daily-bar windows, cost/fill toggles,
+separate experimental markers, system light/dark appearance and reduced-motion preferences.
+The allocation ribbons show exposure, never actual cash flows. Charts are snapshots, not streaming feeds.
+
+![Actual chart workspace using synthetic demo data](docs/images/workspace-holding.jpg)
+
+![Actual allocation exposure using synthetic demo data](docs/images/workspace-portfolio.jpg)
+
+This is the running local HTML resource with synthetic prices/account/fills, not a real account or
+proof of the Codex widget bridge. The controls are functional; the demo does not fetch market data.
+
+```mermaid
+flowchart LR
+  A[Read-only Trading 212] --> C[Portfolio exposure]
+  B[Public market bars] --> D[Holding chart]
+  C --> D
+  E[Dated Fed / BLS calendar] --> F[Conditions and invalidation]
+  D --> F
+  F --> G[Human decision]
+  F --> H[Shadow review]
+```
 
 - Verifies Trading 212 credentials locally before saving them to macOS Keychain.
 - Reviews concentration, account reconciliation, missing data and independent risk vetoes.
@@ -27,6 +52,22 @@ Current development version: `0.1.0-dev.12` · License: MIT · Platform: macOS f
 - Keeps daily strategy validation and shadow outcomes on explicitly identified daily bars.
 - Evaluates shadow outcomes only with verified matching price currencies and eligible decisions.
 
+The three technical rules are a starting point. The [bilingual research framework](docs/RESEARCH_FRAMEWORK.md)
+maps primary papers to macro surprises, business/valuation evidence, horizons, execution costs,
+portfolio risk and out-of-sample validation, and labels what remains unimplemented.
+
+## Connected workflow and honest coverage
+
+| Connection | Available | Boundary |
+|---|---|---|
+| Trading 212 API | Local read-only account/history reviews | Broker-page reconciliation still open |
+| Public market data | Symbol research, optional charts | Not a streaming feed; verify venue and currency |
+| Fed / BLS | Dated schedule snapshot in research context | No live expectations or outcome prediction |
+| Codex | Tools, inline resources and secure setup | Current-host mounting and widget acceptance are separate checks |
+| Chrome / ChatGPT sidebar | Symbols supplied by an authorized host | No automatic DOM access; full bridge unaccepted |
+| Obsidian / Blackstone | Optional local candidate-research workflow | Not a default customer integration or model training |
+| Yahoo / BBC / Apple News / Longbridge | Possible linked manual research material | Not all are automated connectors or licensed commercial feeds |
+
 The formal interface is the Codex conversation and its inline cards. The former Vesper browser
 dashboard remains available for one compatibility release but is not the product's default path.
 
@@ -40,7 +81,7 @@ conditions, not a real account, live signal or investment return.
 - macOS 14 or later
 - Node.js 22 or later
 - Codex desktop or Codex CLI with plugin support
-- Trading 212 Invest or Stocks ISA read-only API credentials
+- Trading 212 Invest or Stocks ISA read-only API credentials for account mode; public-symbol research does not require them
 
 ## Install from source
 
@@ -56,7 +97,7 @@ Restart Codex and open a new conversation. Select `VigilAlpha` under `+` → Mor
 setup card. Never paste an API key or secret into chat.
 
 Download the development ZIP and checksum from the
-[dev.12 prerelease](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.12).
+[dev.13 prerelease](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.13).
 See [the installation guide](docs/INSTALL.md) for permissions, setup and verification.
 
 ## Public tools
@@ -89,6 +130,8 @@ rejects every non-GET Trading 212 request in code.
 - API credentials are stored in macOS Keychain, not project files or chat.
 - Normalized cache, configuration and derived history remain local with owner-only permissions.
 - Cloud sync and telemetry are disabled.
+- Tool summaries and chart output are supplied to the Codex host; model processing/retention follows
+  the user's host settings. Local storage does not mean no data enters model context.
 - API response bodies are excluded from failure messages.
 - `local_data` provides export and deletion; deletion requires the explicit confirmation phrase.
 
@@ -107,11 +150,14 @@ Build the same installable archive used by CI:
 
 ```bash
 ./scripts/build-release.sh
-(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.12.zip.sha256)
+(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.13.zip.sha256)
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the current
 [release checklist](RELEASE_CHECKLIST.md) before proposing a release.
+
+For an account-free, deterministic UI preview run `node scripts/preview-workspace.mjs` from the
+plugin directory. It binds only to localhost; every account, bar and fill is synthetic. Stop with Ctrl+C.
 
 ## Status boundary
 

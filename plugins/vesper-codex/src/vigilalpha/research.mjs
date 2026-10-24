@@ -5,7 +5,7 @@ export const SOURCE_EVIDENCE = Object.freeze([
   source("fidelity-chart-patterns", "B", "Fidelity chart patterns", "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Deck_Chart%20patterns.pdf", "Chart definitions, confirmation and failed-breakout examples."),
   source("cfa-technical-analysis-review", "A", "CFA Institute technical analysis literature review", "https://rpc.cfainstitute.org/sites/default/files/-/media/documents/book/rf-lit-review/2016/rflrv11n11.pdf", "Method limits, subjectivity and need for algorithmic validation."),
   source("aqr-century-trend", "C", "AQR: A Century of Evidence on Trend-Following Investing", "https://www.aqr.com/insights/research/journal-article/a-century-of-evidence-on-trend-following-investing", "Long-horizon trend hypothesis; not direct evidence for a single holding."),
-  source("nber-momentum-crashes", "A", "NBER: Momentum Crashes", "https://www.nber.org/papers/w20660", "Momentum tail-risk and regime failure evidence."),
+  source("nber-momentum-crashes", "A", "NBER: Momentum Crashes", "https://www.nber.org/papers/w20439", "Momentum tail-risk and regime failure evidence; cross-sectional momentum is not an RSI rule."),
   source("cfa-technical-rules-revisited", "A", "CFA Institute: Technical Trading Revisited", "https://rpc.cfainstitute.org/research/cfa-digest/2013/02/technical-trading-revisited-false-discoveries-persistence-tests-and-transaction-costs-digest", "False-discovery, persistence and transaction-cost gate." )
 ]);
 

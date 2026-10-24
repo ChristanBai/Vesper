@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatSetupStatus, listInlineResources, normalizeAppToolResult, readInlineResource, readVisualizationResource } from "../src/vigilalpha/inline-ui.mjs";
+import { displayNumber, selectHoldingBars, visibleExecutions, formatSetupStatus, listInlineResources, normalizeAppToolResult, readInlineResource, readVisualizationResource } from "../src/vigilalpha/inline-ui.mjs";
 import { credentialVerificationMessage, TOOL_DEFINITIONS } from "../src/mcp/tools.mjs";
 
 test("all inline resources are local, responsive and contain parsable scripts", () => {
@@ -42,4 +42,23 @@ test("review tools reference the intended inline resources", () => {
   assert.equal(byName.get("holding_review")._meta.ui.resourceUri, "ui://vigilalpha/holding-chart.html");
   assert.equal(byName.get("portfolio_changes")._meta.ui.resourceUri, "ui://vigilalpha/risk-timeline.html");
   assert.deepEqual(byName.get("configure_credentials")._meta.ui.visibility, ["app"]);
+});
+
+test("chart data keeps unknown numbers absent and rejects invalid OHLC geometry", () => {
+  for (const value of [null, undefined, "", "invalid", Infinity]) assert.equal(displayNumber(value), null);
+  assert.equal(displayNumber(0), 0);
+  const bar = { time: "2026-10-23T00:00:00Z", open: 10, high: 12, low: 9, close: 11 };
+  assert.deepEqual(selectHoldingBars([{ ...bar, high: 8 }, { ...bar, time: "invalid" }, { ...bar, close: null }, bar]), [bar]);
+});
+
+test("intraday fills map only to their existing UTC candle, never the next day", () => {
+  const bars = [{ time: "2026-10-22T00:00:00Z" }, { time: "2026-10-23T00:00:00Z" }];
+  const fills = visibleExecutions([
+    { timestamp: "2026-10-22T13:45:00Z", side: "BUY", executionPrice: 15 },
+    { timestamp: "2026-10-21T13:45:00Z", side: "SELL", executionPrice: 16 },
+    { timestamp: "2026-10-23T13:45:00Z", side: "BUY", executionPrice: null }
+  ], bars);
+  assert.equal(fills.length, 1);
+  assert.equal(fills[0].index, 0);
+  assert.equal(fills[0].price, 15);
 });

@@ -27,6 +27,10 @@ test("holding review applies configured concentration and drawdown vetoes", asyn
   assert.equal(review.signal, "REDUCE_RISK");
   assert.ok(review.riskVeto.reasons.some((reason) => reason.code === "SEVERE_CONCENTRATION"));
   assert.ok(review.riskVeto.reasons.some((reason) => reason.code === "EXTREME_DRAWDOWN"));
+  assert.equal(review.chart.currency, null);
+  assert.equal(review.eventContext.predictsResults, false);
+  assert.equal(review.eventContext.coverageComplete, false);
+  assert.equal(typeof review.eventContext.requiresRefresh, "boolean");
 });
 
 test("portfolio review keeps missing account values null", async () => {

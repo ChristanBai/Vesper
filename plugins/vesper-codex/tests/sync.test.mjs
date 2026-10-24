@@ -76,6 +76,69 @@ test("a failed refresh never relabels cached account facts with the current atte
   assert.equal(refreshed.sectionSyncedAt.positions, "2026-10-09T00:00:00.000Z");
 });
 
+test("manual refresh and full refresh bypass every section TTL", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "vigilalpha-force-"));
+  const client = new FakeClient();
+  let calls = 0;
+  const orders = client.orders.bind(client);
+  client.orders = async () => { calls += 1; return orders(); };
+  let now = Date.parse("2026-10-24T00:00:00Z");
+  const service = new PortfolioSyncService({ client, env: { VESPER_STATE_DIR: directory }, now: () => now });
+  await service.getSnapshot();
+  now += 1000;
+  await service.getSnapshot();
+  assert.equal(calls, 1);
+  const refreshed = await service.getSnapshot({ force: true });
+  assert.equal(calls, 2);
+  assert.equal(refreshed.sectionSyncedAt.orders, new Date(now).toISOString());
+  now += 1000;
+  await service.getSnapshot({ full: true });
+  assert.equal(calls, 3);
+});
+
+test("manual refresh queues behind a weaker in-flight request", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "vigilalpha-refresh-queue-"));
+  const service = new PortfolioSyncService({ client: new FakeClient(), env: { VESPER_STATE_DIR: directory } });
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const options = [];
+  service.loadSnapshot = async (value) => {
+    options.push(value);
+    if (options.length === 1) await gate;
+    return { refreshed: Boolean(value.force || value.full) };
+  };
+  const weak = service.getSnapshot();
+  const strong = service.getSnapshot({ force: true });
+  const secondStrong = service.getSnapshot({ full: true });
+  release();
+  assert.equal((await weak).refreshed, false);
+  assert.equal((await strong).refreshed, true);
+  assert.equal((await secondStrong).refreshed, true);
+  assert.equal(options.length, 2);
+});
+
+test("manual refresh respects order-history backoff and preserves its timestamp", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "vigilalpha-refresh-backoff-"));
+  let now = Date.parse("2026-10-24T00:00:00Z");
+  const client = new FakeClient();
+  const service = new PortfolioSyncService({ client, env: { VESPER_STATE_DIR: directory }, now: () => now });
+  await service.getSnapshot();
+  const original = new Date(now).toISOString();
+  let calls = 0;
+  client.orders = async () => {
+    calls += 1;
+    throw Object.assign(new Error("rate limited"), { status: 429, retryAfterMs: 60000 });
+  };
+  now += 1000;
+  await service.getSnapshot({ force: true });
+  now += 1000;
+  const snapshot = await service.getSnapshot({ force: true });
+  assert.equal(calls, 1);
+  assert.equal(snapshot.sectionSyncedAt.orders, original);
+  assert.equal(snapshot.historyCompleteness.orders.complete, false);
+  assert.equal(snapshot.sectionSyncedAt.positions, new Date(now).toISOString());
+});
+
 class FakeClient {
   async accountSummary() {
     return {

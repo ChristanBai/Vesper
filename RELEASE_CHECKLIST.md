@@ -1,3 +1,22 @@
+# VigilAlpha dev.14 prerelease acceptance
+
+2026-10-24. This checklist is pre-publication source evidence; exact commit, hosted CI and downloaded
+artifact checks are recorded in the GitHub Release after execution. A prior version's pass is not inherited.
+
+- [x] Source syntax and full tests; force/full TTL bypass, in-flight escalation, rate-limit timestamp retention, missing weight/cost.
+- [x] Actual synthetic local UI: manual themes/persistence/storage denial, candle/line plus holding exposure, success/failure/unsupported refresh, narrow layout.
+- [x] Bilingual product/changes, actual synthetic screenshots, primary workflow references and proposed net-return/drawdown/coverage definitions.
+- [ ] Exact committed clean clone and separately extracted artifact checks.
+- [ ] Current tree and reachable historical text privacy/pattern scan; limited scanning is not a full security audit.
+- [ ] Hosted CI, public prerelease and independent ZIP checksum/startup checks.
+- [ ] New supported host mounts dev.14 and renders real holding UI.
+- [ ] Real broker post-fill reconciliation/latency and ChatGPT sidebar accepted.
+
+No new production strategy is activated. Actual token usage is unavailable; no cost-saving percentage is claimed.
+User-specific research automation and Blackstone knowledge are not embedded customer services or private release assets.
+
+---
+
 # VigilAlpha dev.13 prerelease and historical acceptance
 
 ## Current dev.13 gates (2026-10-24)

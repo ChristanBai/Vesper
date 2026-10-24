@@ -19,12 +19,20 @@ const server = http.createServer((request, response) => {
   const route = routes.get(url.pathname);
   if (!route) { response.writeHead(404); response.end(); return; }
   const [uri, data] = route;
-  const json = JSON.stringify(data).replaceAll("<", "\\u003c");
-  const bootstrap = `<script>window.openai={toolOutput:${json}};</script>`;
+  const fixture = { ...data, accountFreshness: { positionsAsOf: '2026-09-27T16:01:00Z · SYNTHETIC', ordersAsOf: '2026-09-27T16:00:00Z · SYNTHETIC', failedSections: [] } };
+  const json = JSON.stringify(fixture).replaceAll("<", "\\u003c");
+  const bootstrap = `<script>window.openai={toolOutput:${json}};
+    const previewOptions=${JSON.stringify({ refresh: url.searchParams.get("refresh"), storage: url.searchParams.get("storage") })};
+    if(previewOptions.storage==='blocked')Object.defineProperty(window,'localStorage',{get(){throw new Error('SYNTHETIC STORAGE BLOCKED')}});
+    if(previewOptions.refresh==='success')window.openai.callTool=async(name,args)=>{
+      const result=JSON.parse(JSON.stringify(window.openai.toolOutput));
+      result.accountFreshness.positionsAsOf='2026-09-27T16:02:00Z · SYNTHETIC REFRESH';
+      result.accountFreshness.ordersAsOf='2026-09-27T16:02:00Z · SYNTHETIC REFRESH';
+      return {structuredContent:result};
+    };
+    if(previewOptions.refresh==='error')window.openai.callTool=async()=>{throw new Error('合成失败案例 / SYNTHETIC REFRESH FAILURE; original retained.')};
+    </script>`;
   let html = readVisualizationResource(uri).text.replace("<script>", bootstrap + "<script>");
-  if (url.searchParams.get("theme") === "light") {
-    html = html.replace("</head>", '<style>:root{color-scheme:light;--bg:#f5f5f7;--card:#fff;--line:#d8dce2;--text:#202124;--muted:#59616e;--accent:#326e91;--warn:#965321;--research:#79509c;--hover:#e8ebef}</style></head>');
-  }
   response.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
   response.end(html);
 });

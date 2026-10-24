@@ -30,6 +30,7 @@ export class PortfolioSyncService {
     this.now = now;
     this.memoryCache = null;
     this.inFlight = null;
+    this.inFlightRefresh = false;
     this.ordersRetryAfter = 0;
   }
 
@@ -41,9 +42,17 @@ export class PortfolioSyncService {
   }
 
   async getSnapshot({ force = false, full = false } = {}) {
-    if (this.inFlight) return this.inFlight;
+    const refresh = Boolean(force || full);
+    if (this.inFlight) {
+      if (!refresh || this.inFlightRefresh) return this.inFlight;
+      // A manual refresh must not be satisfied by an older cache-only request.
+      await this.inFlight;
+      return this.getSnapshot({ force, full });
+    }
+    this.inFlightRefresh = refresh;
     this.inFlight = this.loadSnapshot({ force, full }).finally(() => {
       this.inFlight = null;
+      this.inFlightRefresh = false;
     });
     return this.inFlight;
   }
@@ -51,10 +60,10 @@ export class PortfolioSyncService {
   async loadSnapshot({ force = false, full = false } = {}) {
     const cached = await this.readCache();
     const age = cached?.syncedAt ? this.now() - Date.parse(cached.syncedAt) : Infinity;
-    if (!force && cached && age <= FRESHNESS_MS.positions) return cached;
+    if (!force && !full && cached && age <= FRESHNESS_MS.positions) return cached;
 
     const shouldRefresh = (key, fallbackMs) => {
-      if (full || !cached?.sectionSyncedAt?.[key]) return true;
+      if (force || full || !cached?.sectionSyncedAt?.[key]) return true;
       return this.now() - Date.parse(cached.sectionSyncedAt[key]) >= fallbackMs;
     };
 

@@ -44,3 +44,33 @@ test("portfolio review keeps missing account values null", async () => {
   assert.equal(review.signal, "WATCH");
   assert.ok(review.riskVeto.reasons.some((reason) => reason.code === "MISSING_CUTOFF"));
 });
+
+
+test("holding review separates successful account retrieval times from a refresh attempt", async () => {
+  const snapshot = {
+    status: "PARTIAL", syncedAt: "2026-10-23T00:00:00Z",
+    lastAttemptAt: "2026-10-24T00:00:00Z",
+    sectionSyncedAt: { positions: "2026-10-24T00:00:00Z", orders: "2026-10-23T00:00:00Z" },
+    summary: { totalValue: 100 }, positions: [{ symbol: "AAA", marketValue: 12, quantity: 1, averagePricePaid: null }],
+    orders: [], errors: [{ section: "orders", status: 429 }]
+  };
+  let requested;
+  const service = { config: {}, snapshot: async options => { requested = options; return snapshot; }, history: async () => ({ source: "fixture", bars: [] }) };
+  const result = await holdingReview(service, "AAA", { refresh: true });
+  assert.equal(requested.force, true);
+  assert.equal(result.accountFreshness.isRealtime, false);
+  assert.equal(result.accountFreshness.positionsAsOf, snapshot.sectionSyncedAt.positions);
+  assert.equal(result.accountFreshness.ordersAsOf, snapshot.sectionSyncedAt.orders);
+  assert.deepEqual(result.accountFreshness.failedSections, ["orders"]);
+  assert.equal(result.chart.averageCost, null);
+  assert.equal(result.holding.weightPercent, 12);
+});
+
+
+test("missing market value is not converted to zero account exposure", async () => {
+  const service = { config: {}, snapshot: async () => ({ summary: { totalValue: 100 }, positions: [{ symbol: "AAA", marketValue: null }], orders: [], errors: [] }), history: async () => ({ bars: [] }) };
+  const holding = await holdingReview(service, "AAA");
+  assert.equal(holding.holding.weightPercent, null);
+  const portfolio = await portfolioReview(service, null, { saveSnapshot: false });
+  assert.equal(portfolio.positions[0].weightPercent, null);
+});

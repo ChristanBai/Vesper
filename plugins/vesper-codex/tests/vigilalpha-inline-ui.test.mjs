@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { displayNumber, selectHoldingBars, visibleExecutions, formatSetupStatus, listInlineResources, normalizeAppToolResult, readInlineResource, readVisualizationResource } from "../src/vigilalpha/inline-ui.mjs";
+import { holdingExposure, displayNumber, selectHoldingBars, visibleExecutions, formatSetupStatus, listInlineResources, normalizeAppToolResult, readInlineResource, readVisualizationResource } from "../src/vigilalpha/inline-ui.mjs";
 import { credentialVerificationMessage, TOOL_DEFINITIONS } from "../src/mcp/tools.mjs";
 
 test("all inline resources are local, responsive and contain parsable scripts", () => {
@@ -61,4 +61,12 @@ test("intraday fills map only to their existing UTC candle, never the next day",
   assert.equal(fills.length, 1);
   assert.equal(fills[0].index, 0);
   assert.equal(fills[0].price, 15);
+});
+
+
+test("single-holding exposure preserves measured weights and refuses invented remainders", () => {
+  assert.deepEqual(holdingExposure(12), { holding: 12, remainder: 88 });
+  assert.deepEqual(holdingExposure(0), { holding: 0, remainder: 100 });
+  assert.deepEqual(holdingExposure(100), { holding: 100, remainder: 0 });
+  for (const value of [null, undefined, "", -1, 101, NaN]) assert.equal(holdingExposure(value), null);
 });

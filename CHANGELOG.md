@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-dev.14 — 2026-10-24
+
+### 中文
+
+- 单股 K 线／折线与账户暴露桑基图同页共存，保留组合配置总览；支持手动系统／浅色／深色主题及本地偏好。
+- 修复 force/full 刷新被缓存TTL和较弱请求吞掉的问题；成交历史限流仍遵守，分别披露持仓与历史读取时间。新增只读刷新按钮，失败不改写旧图或时间。
+- 未知成本与市值保持缺失；不将未知权重画成零。桑基图表示账户暴露，不推断公司营收或资金流。
+- 研究文档补充 Qlib/FinRL 工作流参考、冻结实验清单、净成本后基准超额收益与回撤/覆盖定义；未激活新策略，未安装外部研究框架。
+- 当前仍为按需快照，不是自动实时成交订阅；真实券商成交后和新宿主路径仍待验收。
+
+### English
+
+- Keep candle/line charts and holding account-exposure ribbons together, retain portfolio allocation, and add explicit System/Light/Dark preferences.
+- Make force/full refresh bypass section TTLs and escalate weaker in-flight requests while honoring history backoff. Disclose successful retrieval times separately; read-only App refresh preserves old facts on failure.
+- Preserve missing cost/value evidence rather than turning it into zero. Ribbons represent exposure, not inferred company revenues or cash flows.
+- Document Qlib/FinRL workflow references, frozen experiment manifests and after-cost benchmark/drawdown/coverage definitions. No new strategy or external framework is activated.
+- On-demand snapshots remain distinct from automatic trade subscriptions; real post-fill and new-host acceptance are open.
+
 ## 0.1.0-dev.13 — 2026-10-24
 
 ### 中文

@@ -8,7 +8,7 @@ VigilAlpha is a local-first, strictly read-only Trading 212 risk-review plugin f
 account facts, transaction markers, data-quality checks, strategy evidence and conditional risk
 decisions into one conversation. It cannot place, change or cancel an order.
 
-Current development version: `0.1.0-dev.13` · License: MIT · Platform: macOS first
+Current development version: `0.1.0-dev.14` · License: MIT · Platform: macOS first
 
 > Development prerelease: conditional research is experimental and account/UI acceptance is still
 > incomplete. Public `v1.0` and plugin-directory approval remain separate gates. No strategy here
@@ -18,10 +18,12 @@ Current development version: `0.1.0-dev.13` · License: MIT · Platform: macOS f
 
 Start with portfolio exposure, inspect one holding, review the dated evidence and decide for yourself.
 The chart-first workspace supports candles/lines, available daily-bar windows, cost/fill toggles,
-separate experimental markers, system light/dark appearance and reduced-motion preferences.
-The allocation ribbons show exposure, never actual cash flows. Charts are snapshots, not streaming feeds.
+separate experimental markers, manual System/Light/Dark appearance and reduced-motion preferences.
+The allocation ribbons show exposure, never actual cash flows. Holding research includes both price and account-exposure views; candle/line is a display toggle. Charts are snapshots, not streaming feeds.
 
-![Actual chart workspace using synthetic demo data](docs/images/workspace-holding.jpg)
+Use **Refresh** after a broker action. It attempts all account sections while respecting broker limits, keeps old facts on failure and labels positions/history retrieval times separately. It is not an automatic per-trade subscription; broker publication and market-data delays still apply. Hosts without App tool calls retain the chat refresh path.
+
+![Actual chart workspace using synthetic demo data](docs/images/workspace-linked-dark.png)
 
 ![Actual allocation exposure using synthetic demo data](docs/images/workspace-portfolio.jpg)
 
@@ -97,7 +99,7 @@ Restart Codex and open a new conversation. Select `VigilAlpha` under `+` → Mor
 setup card. Never paste an API key or secret into chat.
 
 Download the development ZIP and checksum from the
-[dev.13 prerelease](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.13).
+[dev.14 prerelease](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.14).
 See [the installation guide](docs/INSTALL.md) for permissions, setup and verification.
 
 ## Public tools
@@ -150,7 +152,7 @@ Build the same installable archive used by CI:
 
 ```bash
 ./scripts/build-release.sh
-(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.13.zip.sha256)
+(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.14.zip.sha256)
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the current

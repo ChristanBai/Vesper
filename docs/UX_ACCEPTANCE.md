@@ -1,3 +1,23 @@
+# dev.14 linked-view acceptance / 联动界面验收
+
+2026-10-24. Actual Chrome local synthetic preview; no broker facts, live trade or real App bridge implied.
+本轮使用真实浏览器操作本地合成页面；不代表券商对账或 Codex/ChatGPT bridge 已完成。
+
+- Verified explicit Light/Dark/System selection, dark persistence across reload and portfolio route, and graceful operation when localStorage throws.
+- Verified candle/line controls alongside a measured 12%/88% account-exposure ribbon. Unknown/invalid weights abstain; remainder is not cash or company revenue.
+- Verified holding/portfolio refresh with fixture tool returns; separate retrieval timestamps update. Synthetic failure retains original prices and timestamps; error survives resize and chart toggles.
+- Verified host-without-callTool fallback; empty bars/weight remain absent. At 390 px, document width equals scroll width and holding exposure uses a 340-wide viewBox with 12 px text.
+- Browser review discovered failure messages disappearing on resize; fixed and rechecked. Actual Trading 212 page still displays a password field, so real post-fill latency and new-host rendering remain open.
+
+![Actual dark synthetic workspace](images/workspace-linked-dark.png)
+![Actual light synthetic workspace](images/workspace-linked-light.png)
+
+The button is request-driven, subject to broker throttling/publication delay. No background trade listener,
+automatic refresh subscription, order capability, issuer cash-flow graph or production strategy was added.
+只读刷新不是自动实时订阅。下面保留 dev.13 的历史验收记录。
+
+---
+
 # UX acceptance / 界面验收
 
 Date / 日期: 2026-10-24. Version / 版本: 0.1.0-dev.13.

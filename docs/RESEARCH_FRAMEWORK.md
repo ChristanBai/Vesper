@@ -59,3 +59,32 @@ are redistributed. 两篇 PDF 有限阅读摘要/方法，其余为出版机构�
 No new numerical weights, production rules or trading permissions are activated by this document.
 本文件不激活新权重、生产规则或交易权限。Current gaps: full fundamentals, valuation, volatility sizing,
 cross-market licensing and real customer-host acceptance / 当前缺口：基本面、估值、波动预算、授权与真实宿主验收。
+
+
+## Reproducible daily research / 可复核的每日研究
+
+Documentation checked 2026-10-24: [Qlib](https://github.com/microsoft/qlib) documents a dataset/train/backtest/evaluate workflow and reports costs separately. [FinRL](https://github.com/AI4Finance-Foundation/FinRL) documents a train/test/trade pipeline and marks its tutorial as educational/research. These are workflow references, not replicated strategy evidence or installed integrations. Qlib text capture succeeded; FinRL raw/commit retrieval timed out, so only its official web-readable workflow was reviewed. Remote README images were not interpreted.
+
+文档参考不等于收益复制。当前研究优先级是：日线趋势与突破的失败样本 → 震荡/均值回归候选 → 价量/波动状态 → 长线公司与估值 → 宏观事件的事前预期及实际意外。后面四层仍为研究候选，不是已部署买卖公式。多个相关指标不能当作独立证据票数。
+
+Every experiment must freeze / 每次实验先冻结：
+
+- ID/version, source/read depth, all variants attempted, universe/sector/liquidity coverage and exclusions.
+- Data hash, available_at, venue/currency, corporate-action adjustment, daily interval and missing-data policy.
+- Entry, exit, invalidation, abstention and earliest next executable bar; gap and adverse-fill treatment.
+- Chronological train/validation/untouched test windows, overlap handling and preselected benchmarks.
+- Spread, slippage, commission, FX and stated tax scope; uncertainty/sensitivity rather than zero-cost defaults.
+
+拟采用指标，当前没有本产品实测基线或收益达标承诺：
+
+| Metric / 指标 | Definition / 定义 | Guard / 限制 |
+|---|---|---|
+| Primary: net benchmark-relative return / 主指标：净超额收益 | Out-of-sample strategy net return minus matched benchmark net return / 同期间、币种、证券池与实施约束下净收益之差 | External cash flows handled separately; not hit rate / 外部入出金另处理，不以胜率代替收益 |
+| Driver: evaluable coverage / 驱动：可评价覆盖 | Candidates with complete dated input/cost evidence divided by all eligible candidates / 完整时点及费用证据候选占比 | Keep abstentions and denominator; never hide missing cases / 保留弃权与分母 |
+| Driver: prospective samples / 驱动：前瞻样本 | Eligible frozen shadow decisions with evaluable outcomes / 可评价的冻结影子决策数 | No rewriting forecasts or counting WAIT as successful prediction / 不改预测，不把WAIT当成功 |
+| Guard: maximum drawdown / 护栏：最大回撤 | Largest peak-to-trough decline in after-cost equity / 成本后净值最大峰谷降幅 | Also report turnover, exposure and adverse cost scenarios / 同时报换手、暴露与不利成本情景 |
+| Guard: evidence gaps / 护栏：证据缺失 | Missing point-in-time or cost inputs over required inputs / 必需时点或费用输入的缺失比例 | Missing evidence blocks promotion, not zero-valued inputs / 缺失阻止晋级，不填零 |
+
+Refresh latency is a separate product metric: broker fill/publication to first successfully observed history result, measured only where those timestamps are available. Retrieval time alone cannot establish that latency. Current real post-fill latency is unmeasured.
+
+研究角色可由有界子任务执行，数值计算复用本地代码；没有常驻多模型服务、自动训练或消耗剩余额度的循环。用户的 Blackstone 每日任务是本地可选流程，不是所有客户默认拥有的服务。候选金融规则仍需既有前瞻门禁与明确人工批准，软件测试不证明盈利。

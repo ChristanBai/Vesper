@@ -24,7 +24,7 @@ export async function portfolioReview(service, store, { refresh = true, saveSnap
   const totalValue = finiteOrNull(snapshot.summary?.totalValue);
   const positions = (snapshot.positions || []).map((position) => publicPosition({
     ...position,
-    weightPercent: totalValue ? Number(position.marketValue || 0) / totalValue * 100 : null
+    weightPercent: positionWeight(position, totalValue)
   }));
   const etfCount = positions.filter((position) => /ETF|FUND/i.test(position.instrumentType || "")).length;
   const signal = riskVeto.reasons.some((reason) => ["POSITION_WEIGHT", "TOP_ONE_CONCENTRATION"].includes(reason.code))
@@ -35,6 +35,7 @@ export async function portfolioReview(service, store, { refresh = true, saveSnap
     reviewVersion: "vigilalpha.portfolio-review.v1",
     generatedAt: new Date().toISOString(),
     sourceCutoff: snapshot.syncedAt || null,
+    accountFreshness: accountFreshness(snapshot),
     status: snapshot.status || "UNKNOWN",
     summary: publicSummary(snapshot.summary),
     concentration: brief.concentration,
@@ -59,8 +60,8 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
   const snapshot = await service.snapshot({ force: Boolean(refresh) });
   const position = snapshot.positions?.find((item) => String(item.symbol || "").trim().toUpperCase() === normalized);
   if (!position) throw new Error(`Holding not found in the current account: ${normalized}`);
-  const totalValue = Number(snapshot.summary?.totalValue || 0);
-  const weightPercent = totalValue ? Number(position.marketValue || 0) / totalValue * 100 : null;
+  const totalValue = finiteOrNull(snapshot.summary?.totalValue);
+  const weightPercent = positionWeight(position, totalValue);
   let history = null;
   let marketError = null;
   try {
@@ -91,6 +92,7 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
     reviewVersion: "vigilalpha.holding-review.v1",
     generatedAt: new Date().toISOString(),
     sourceCutoff: snapshot.syncedAt || null,
+    accountFreshness: accountFreshness(snapshot),
     holding: publicPosition({ ...position, weightPercent }),
     evidence: {
       account: "Trading 212 normalized current snapshot",
@@ -106,12 +108,28 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
       status: history?.bars?.length ? "AVAILABLE" : "UNAVAILABLE",
       currency: history?.currency || null,
       bars: history?.bars || [],
-      averageCost: Number.isFinite(Number(position.averagePricePaid)) ? Number(position.averagePricePaid) : null,
+      averageCost: finiteOrNull(position.averagePricePaid),
       executionMarkers: tradeMarkers(snapshot.orders || [], normalized),
       strategyMarkers: conditionalResearch.markers
     },
     tradeReview: publicTradeReview(tradeReview, snapshot.historyCompleteness?.orders),
     disclaimer: "Research signal only. It is not an order or a guarantee of profit."
+  };
+}
+
+function accountFreshness(snapshot) {
+  const sections = snapshot.sectionSyncedAt || {};
+  return {
+    mode: "ON_DEMAND_CACHE",
+    isRealtime: false,
+    positionsAsOf: sections.positions || null,
+    summaryAsOf: sections.summary || null,
+    ordersAsOf: sections.orders || null,
+    piesAsOf: sections.pies || null,
+    transactionsAsOf: sections.transactions || null,
+    lastAttemptAt: snapshot.lastAttemptAt || null,
+    failedSections: (snapshot.errors || []).map(error => error.section),
+    note: "Manual refresh attempts all sections, subject to broker limits and publication delay. Section timestamps are successful retrieval times, not execution or broker publication times."
   };
 }
 
@@ -149,7 +167,7 @@ export async function decisionReview(service, shadowStore, symbol, { refresh = t
   const position = snapshot.positions?.find((item) => String(item.symbol || "").toUpperCase() === normalized);
   if (!position) throw new Error(`Holding not found in the current account: ${normalized}`);
   const totalValue = finiteOrNull(snapshot.summary?.totalValue);
-  const weightPercent = totalValue ? Number(position.marketValue || 0) / totalValue * 100 : null;
+  const weightPercent = positionWeight(position, totalValue);
   let history = null;
   let marketError = null;
   try {
@@ -322,9 +340,14 @@ function normalizeSymbol(value) {
   return symbol;
 }
 
+function positionWeight(position, totalValue) {
+  const value = finiteOrNull(position.marketValue);
+  return totalValue > 0 && value !== null ? value / totalValue * 100 : null;
+}
+
 function finiteOrNull(value) {
   const parsed = Number(value);
-  return value !== null && value !== undefined && Number.isFinite(parsed) ? parsed : null;
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(parsed) ? parsed : null;
 }
 
 function safeMessage(error) {

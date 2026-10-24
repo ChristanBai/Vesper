@@ -2,7 +2,7 @@ import { createToolRuntime } from "./tools.mjs";
 import { listInlineResources, readInlineResource, readVisualizationResource } from "../vigilalpha/inline-ui.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
-const SERVER_VERSION = "0.1.0-dev.13";
+const SERVER_VERSION = "0.1.0-dev.14";
 
 export async function runStdioServer({ env = process.env } = {}) {
   const toolRuntime = createToolRuntime({ env });

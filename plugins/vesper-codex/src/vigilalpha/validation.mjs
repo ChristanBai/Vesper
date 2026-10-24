@@ -11,8 +11,11 @@ export const DEFAULT_COST_ASSUMPTIONS = Object.freeze({
   note: "Conservative hypothetical estimate includes FX by default. Known same-currency holdings override it. Actual broker wallet impact is authoritative for completed fills."
 });
 
-export function validatePattern(pattern, bars, { costs = DEFAULT_COST_ASSUMPTIONS } = {}) {
+export function validatePattern(pattern, bars, { costs = DEFAULT_COST_ASSUMPTIONS, interval = null } = {}) {
   const normalized = normalizeBars(bars);
+  if (!["1D", "1d", "1day"].includes(interval)) {
+    return unavailable(pattern, normalized.length, "DAILY_INTERVAL_REQUIRED", costs);
+  }
   const lookback = Number(pattern?.lookback || 0);
   if (normalized.length < Math.max(lookback + 20, 60)) {
     return unavailable(pattern, normalized.length, "INSUFFICIENT_HISTORY", costs);
@@ -40,6 +43,7 @@ export function validatePattern(pattern, bars, { costs = DEFAULT_COST_ASSUMPTION
     contractVersion: VALIDATION_VERSION,
     patternId: pattern.id,
     patternVersion: pattern.version,
+    interval: "1D",
     status: outOfSample.evaluatedBars >= 20 ? "EVALUATED" : "INSUFFICIENT_OUT_OF_SAMPLE",
     maturityEffect: "NONE_WITHOUT_SHADOW_AND_HUMAN_APPROVAL",
     split: { method: "expanding-window-walk-forward", initialTrainEnd: normalized[firstTest]?.time || null, randomShuffle: false, foldCount: folds.length },
@@ -76,7 +80,7 @@ function simulate(pattern, bars, start, end, costs) {
   let tradeCount = 0;
   const returns = [];
   for (let index = Math.max(start, pattern.lookback); index < end; index += 1) {
-    desired = signal(pattern, bars, index, desired);
+    desired = evaluatePatternSignal(pattern, bars, index, desired);
     const execution = finite(bars[index + 1].open) ?? bars[index + 1].close;
     if (desired === 1 && units === 0) {
       const rate = costRate(costs);
@@ -105,7 +109,7 @@ function simulate(pattern, bars, start, end, costs) {
   };
 }
 
-function signal(pattern, bars, index, previous) {
+export function evaluatePatternSignal(pattern, bars, index, previous) {
   const closes = bars.slice(0, index + 1).map((bar) => bar.close);
   if (pattern.id === "sma-trend-cross") {
     const fast = simpleMovingAverage(closes, 20);

@@ -21,7 +21,7 @@ test("holding review applies configured concentration and drawdown vetoes", asyn
   const service = {
     config: { riskLimits: { maxPositionWeightPercent: 30, drawdownWarningPercent: 15 } },
     snapshot: async () => snapshot,
-    history: async () => ({ source: "fixture", bars: fallingBars() })
+    history: async () => ({ source: "fixture", interval: "1D", bars: fallingBars() })
   };
   const review = await holdingReview(service, "AAA");
   assert.equal(review.signal, "REDUCE_RISK");

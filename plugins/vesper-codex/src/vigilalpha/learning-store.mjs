@@ -4,6 +4,7 @@ import path from "node:path";
 import { ensurePrivateDirectory, stateDirectory } from "../core/config.mjs";
 
 export const SHADOW_RECORD_VERSION = "vigilalpha.shadow-record.v1";
+const OUTCOME_EVALUATION_VERSION = "vigilalpha.shadow-outcome.v2";
 
 export class ShadowLearningStore {
   constructor({ env = process.env, now = () => Date.now() } = {}) {
@@ -37,15 +38,19 @@ export class ShadowLearningStore {
   async review() {
     const records = await this.readAll();
     const decisions = records.filter((record) => record.recordType === "decision");
+    const eligibleDecisions = decisions.filter(isEligibleDecision);
+    const decisionsById = new Map(eligibleDecisions.map((record) => [record.decisionId, record]));
     const outcomes = records.filter((record) => record.recordType === "outcome");
-    const evaluatedIds = new Set(outcomes.map((record) => record.decisionId));
-    const failures = outcomes.filter((record) => Number(record.actionAlignedReturn) < 0);
-    const firstAt = decisions[0]?.recordedAt || null;
+    const verifiedOutcomes = outcomes.filter((record) => isVerifiedOutcome(record, decisionsById.get(record.decisionId)));
+    const evaluatedIds = new Set(verifiedOutcomes.map((record) => record.decisionId));
+    const failures = verifiedOutcomes.filter((record) => Number(record.actionAlignedReturn) < 0);
+    const firstAt = eligibleDecisions[0]?.recordedAt || null;
     const elapsedDays = firstAt ? Math.floor((this.now() - Date.parse(firstAt)) / 86_400_000) : 0;
     return {
       contractVersion: "vigilalpha.learning-review.v1",
       shadowDecisionCount: decisions.length,
       evaluableDecisionCount: evaluatedIds.size,
+      excludedOutcomeCount: outcomes.length - verifiedOutcomes.length,
       failureCaseCount: failures.length,
       observationDays: Math.max(0, elapsedDays),
       promotionGate: { minimumDays: 90, minimumEvaluableDecisions: 30, humanApprovalRequired: true, passed: elapsedDays >= 90 && evaluatedIds.size >= 30 },
@@ -57,8 +62,9 @@ export class ShadowLearningStore {
 
   async evaluatePending(loadHistory) {
     const records = await this.readAll();
-    const decisions = records.filter((record) => record.recordType === "decision" && record.referencePrice && record.sourceCutoff);
-    const existing = new Set(records.filter((record) => record.recordType === "outcome").map((record) => `${record.decisionId}:${record.horizonSessions}`));
+    const decisions = records.filter(isEligibleDecision);
+    const decisionsById = new Map(decisions.map((record) => [record.decisionId, record]));
+    const existing = new Set(records.filter((record) => isVerifiedOutcome(record, decisionsById.get(record.decisionId))).map((record) => `${record.decisionId}:${record.horizonSessions}`));
     const histories = new Map();
     const appended = [];
     for (const decision of decisions) {
@@ -69,9 +75,12 @@ export class ShadowLearningStore {
           histories.set(decision.symbol, null);
         }
       }
-      const bars = histories.get(decision.symbol);
-      if (!bars) continue;
-      const future = (Array.isArray(bars) ? bars : [])
+      const history = histories.get(decision.symbol);
+      if (!history || !["1D", "1d", "1day"].includes(history.interval)) continue;
+      // Account-currency reference prices cannot be compared with an inferred or foreign quote currency.
+      const currency = knownCurrency(history.currency);
+      if (history.currencySource !== "provider" || currency !== decision.referenceCurrency) continue;
+      const future = (Array.isArray(history.bars) ? history.bars : [])
         .filter((bar) => Date.parse(bar?.time || "") > Date.parse(decision.sourceCutoff))
         .sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
       for (const horizon of [20, 60]) {
@@ -83,12 +92,15 @@ export class ShadowLearningStore {
         const directional = ["REDUCE", "EXIT"].includes(decision.action) ? -marketReturn : ["ADD", "HOLD"].includes(decision.action) ? marketReturn : null;
         const outcome = {
           contractVersion: SHADOW_RECORD_VERSION,
+          evaluationVersion: OUTCOME_EVALUATION_VERSION,
           recordType: "outcome",
           recordedAt: new Date(this.now()).toISOString(),
           decisionId: decision.decisionId,
           symbol: decision.symbol,
           action: decision.action,
           horizonSessions: horizon,
+          interval: "1D",
+          currency,
           outcomeAt: future[horizon - 1].time,
           referencePrice: decision.referencePrice,
           outcomePrice,
@@ -144,6 +156,7 @@ export function sanitizeShadowDecision(decision, recordedAt) {
     parametersVersion: decision?.parametersVersion || null,
     dataGate: decision?.dataGate || null,
     referencePrice: finite(decision?.reference?.price),
+    referenceCurrency: knownCurrency(decision?.reference?.currency),
     portfolioWeightPercent: finite(decision?.reference?.portfolioWeightPercent),
     triggerConditions: strings(decision?.triggerConditions),
     invalidationConditions: strings(decision?.invalidationConditions),
@@ -157,4 +170,27 @@ export function sanitizeShadowDecision(decision, recordedAt) {
 }
 
 function strings(value) { return (Array.isArray(value) ? value : []).map((item) => String(item).slice(0, 300)); }
-function finite(value) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }
+function finite(value) { const parsed = Number(value); return value !== null && value !== undefined && Number.isFinite(parsed) ? parsed : null; }
+
+function knownCurrency(value) {
+  const currency = String(value || "").trim();
+  return /^[A-Z]{3}$/.test(currency) ? currency : null;
+}
+
+function isEligibleDecision(record) {
+  return record.recordType === "decision"
+    && ["ADD", "HOLD", "REDUCE", "EXIT"].includes(record.action)
+    && record.dataGate === "PASSED"
+    && finite(record.referencePrice) > 0
+    && knownCurrency(record.referenceCurrency) !== null
+    && Number.isFinite(Date.parse(record.sourceCutoff));
+}
+
+function isVerifiedOutcome(record, decision) {
+  return Boolean(decision)
+    && record.recordType === "outcome"
+    && record.evaluationVersion === OUTCOME_EVALUATION_VERSION
+    && record.interval === "1D"
+    && record.currency === decision.referenceCurrency
+    && finite(record.actionAlignedReturn) !== null;
+}

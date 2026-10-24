@@ -20,15 +20,21 @@ export function buildShadowDecision({ symbol, position, totalValue, riskVeto, co
     disclaimer: "Conditional research plan only. VigilAlpha cannot place, modify or cancel orders."
   };
   const quantity = finite(position?.quantity);
-  const tradable = finite(position?.quantityAvailableForTrading) ?? quantity;
+  const tradable = finite(position?.quantityAvailableForTrading);
   const marketValue = finite(position?.marketValue);
   const accountTotal = finite(totalValue);
   const currentWeight = accountTotal && marketValue !== null ? marketValue / accountTotal * 100 : null;
   const currentPrice = quantity && marketValue !== null ? marketValue / quantity : finite(position?.currentPrice);
-  if (!quantity || !tradable || !accountTotal || marketValue === null || !currentPrice) {
-    return { ...base, dataGate: "FAILED", rationale: ["Current quantity, tradable quantity, account total and account-currency market value are required."] };
+  const required = { quantity, quantityAvailableForTrading: tradable, totalValue: accountTotal, marketValue, accountCurrencyPrice: currentPrice };
+  const dataIssues = Object.entries(required).filter(([, value]) => value === null || value <= 0)
+    .map(([field, value]) => ({ field, code: value === null ? "MISSING_OR_INVALID" : "NON_POSITIVE",
+      message: field === "quantityAvailableForTrading" && value === 0
+        ? "The normalized source reports zero tradable quantity; review the broker field before sizing."
+        : `${field} must be explicitly available and positive before sizing.` }));
+  if (dataIssues.length) {
+    return { ...base, dataGate: "FAILED", dataIssues, rationale: dataIssues.map((issue) => issue.message) };
   }
-  base.reference = { price: currentPrice, portfolioWeightPercent: currentWeight };
+  base.reference = { price: currentPrice, currency: position?.accountCurrency || null, portfolioWeightPercent: currentWeight };
   const currencyStatus = currencyRelation(position?.instrumentCurrency, position?.accountCurrency);
   const effectiveCosts = {
     ...costs,

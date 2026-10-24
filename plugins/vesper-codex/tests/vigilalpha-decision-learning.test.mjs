@@ -73,7 +73,7 @@ test("cost-aware validation is chronological and never promotes a pattern", () =
     volume: 1_000 + index
   }));
   const pattern = PATTERN_SPECS.find((item) => item.id === "sma-trend-cross");
-  const result = validatePattern(pattern, bars);
+  const result = validatePattern(pattern, bars, { interval: "1D" });
   assert.equal(result.split.method, "expanding-window-walk-forward");
   assert.equal(result.folds.length, 3);
   assert.equal(result.split.randomShuffle, false);
@@ -104,20 +104,21 @@ test("20 and 60 session outcomes append without rewriting the shadow decision", 
   const store = new ShadowLearningStore({ env: { VIGILALPHA_STATE_DIR: directory }, now: () => Date.parse("2026-04-01T00:00:00Z") });
   await store.append({
     contractVersion: "test", symbol: "AAA", action: "REDUCE", quantity: 1,
-    sourceCutoff: "2026-01-01T00:00:00Z", reference: { price: 100, portfolioWeightPercent: 30 },
+    dataGate: "PASSED", sourceCutoff: "2026-01-01T00:00:00Z", reference: { price: 100, currency: "USD", portfolioWeightPercent: 30 },
     triggerConditions: ["risk"], invalidationConditions: []
   });
   const bars = Array.from({ length: 65 }, (_, index) => ({
     time: new Date(Date.UTC(2026, 0, index + 2)).toISOString(),
     close: 100 - index * 0.25
   }));
-  const added = await store.evaluatePending(async () => bars);
+  const load = async () => ({ bars, interval: "1D", currency: "USD", currencySource: "provider" });
+  const added = await store.evaluatePending(load);
   assert.deepEqual(added.map((item) => item.horizonSessions), [20, 60]);
   assert.ok(added.every((item) => item.actionAlignedReturn > 0));
   const records = await store.readAll();
   assert.equal(records.filter((item) => item.recordType === "decision").length, 1);
   assert.equal(records.filter((item) => item.recordType === "outcome").length, 2);
-  assert.equal((await store.evaluatePending(async () => bars)).length, 0);
+  assert.equal((await store.evaluatePending(load)).length, 0);
 });
 
 test("image evidence stays illustrative until axes, timeframe and numeric triggers are resolved", () => {

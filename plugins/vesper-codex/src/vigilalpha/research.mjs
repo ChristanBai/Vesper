@@ -11,19 +11,19 @@ export const SOURCE_EVIDENCE = Object.freeze([
 
 export const PATTERN_SPECS = Object.freeze([
   pattern({
-    id: "sma-trend-cross", name: "Moving-average trend and crossover", version: "1.0.0",
+    id: "sma-trend-cross", name: "Moving-average regime and crossover", version: "1.1.0",
     sources: ["aqr-century-trend", "cfa-technical-rules-revisited"], requiredData: ["daily.close"], lookback: 51,
     formation: "Compute fast and slow simple moving averages from data available at each close.",
-    trigger: "Fast SMA crosses above slow SMA; execution is evaluated no earlier than the next bar.",
-    confirmation: "Latest close is above both averages.", buy: "Candidate only after bullish crossover and confirmation.",
-    exit: "Candidate after bearish crossover.", protection: "Risk veto remains independent.",
+    trigger: "SMA20 is above SMA50; the historical simulator changes a flat state to positive and evaluates execution no earlier than the next bar.",
+    confirmation: "Positive moving-average regime; the initial eligible observation need not be a newly observed crossover.", buy: "Candidate while SMA20 > SMA50, subject to independent risk and evidence review.",
+    exit: "Candidate flat regime when SMA20 <= SMA50.", protection: "Risk veto remains independent.",
     invalidation: "Insufficient history, stale data or non-finite prices.", failures: ["Range-bound whipsaw", "Gap risk"],
     evidenceGrade: "CANDIDATE", imageUse: "illustrative"
   }),
   pattern({
-    id: "rsi-momentum", name: "RSI momentum regime", version: "1.0.0",
+    id: "rsi-momentum", name: "RSI momentum regime", version: "1.1.0",
     sources: ["nber-momentum-crashes", "cfa-technical-analysis-review"], requiredData: ["daily.close"], lookback: 15,
-    formation: "Calculate RSI from trailing close-to-close changes.", trigger: "RSI moves above 55 or below 45.",
+    formation: "Calculate RSI from trailing simple-mean close-to-close changes; zero gains and zero losses use a neutral 50 reading.", trigger: "RSI moves above 55 or below 45.",
     confirmation: "Threshold persists at the data cutoff.", buy: "Above 55 is a positive research candidate.",
     exit: "Below 45 is a negative research candidate.", protection: "No standalone sizing authority.",
     invalidation: "Short history or non-finite closes.", failures: ["Momentum crash", "Fast reversal"],

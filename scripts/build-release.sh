@@ -24,6 +24,7 @@ cp "$repository_root/SECURITY.md" "$stage_root/SECURITY.md"
 cp "$repository_root/CONTRIBUTING.md" "$stage_root/CONTRIBUTING.md"
 cp "$repository_root/CHANGELOG.md" "$stage_root/CHANGELOG.md"
 cp "$repository_root/docs/INSTALL.md" "$stage_root/docs/INSTALL.md"
+cp -R "$repository_root/docs/images" "$stage_root/docs/images"
 
 find "$stage_root" -name ".DS_Store" -delete
 

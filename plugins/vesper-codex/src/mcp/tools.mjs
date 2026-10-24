@@ -7,7 +7,8 @@ import { T212Client } from "../core/t212-client.mjs";
 import { DashboardManager } from "../dashboard/server.mjs";
 import { buildPortfolioBrief } from "../analysis/portfolio-brief.mjs";
 import { calculateTradeReview, createRuntime, tradeMarkers } from "../runtime.mjs";
-import { decisionReview, holdingReview, learningReview, portfolioReview, strategyReview } from "../vigilalpha/reviews.mjs";
+import { decisionReview, holdingReview, learningReview, marketReview, portfolioReview, strategyReview } from "../vigilalpha/reviews.mjs";
+import { eventReview } from "../vigilalpha/events.mjs";
 import { HOLDING_CHART_UI_URI, PORTFOLIO_FLOW_UI_URI, RISK_TIMELINE_UI_URI, SETUP_UI_URI } from "../vigilalpha/inline-ui.mjs";
 import { DerivedSnapshotStore } from "../vigilalpha/snapshot-store.mjs";
 import { ShadowLearningStore } from "../vigilalpha/learning-store.mjs";
@@ -31,6 +32,7 @@ export function createToolRuntime({ env = process.env } = {}) {
   return {
     definitions: TOOL_DEFINITIONS,
     async call(name, args = {}) {
+      if (name === "event_review") return eventReview(args);
       if (name === "configure_credentials") {
         const result = await configureCredentialsTool(args, env);
         runtimePromise = null;
@@ -51,6 +53,8 @@ export function createToolRuntime({ env = process.env } = {}) {
           return holdingReview(service, args.symbol, args);
         case "strategy_review":
           return strategyReview(service, args.symbol, args);
+        case "market_review":
+          return marketReview(service, args.symbol, args);
         case "decision_review":
           return decisionReview(service, shadowStore, args.symbol, args);
         case "learning_review":
@@ -99,6 +103,12 @@ export function createToolRuntime({ env = process.env } = {}) {
 const LEGACY_TOOL_NAMES = new Set(["setup", "start_vesper", "holdings", "pies", "trades", "quote", "history", "dashboard", "news", "analysis", "backtest", "report", "daily_brief", "order_history"]);
 
 export const TOOL_DEFINITIONS = [
+  tool("event_review", "Review upcoming official events", "Show a dated official-calendar snapshot, upcoming scheduled events, uncertainty and source freshness. It does not predict the Fed decision or stock returns.", {
+    type: "object", properties: { asOf: { type: "string" }, days: { type: "integer", minimum: 1, maximum: 90 } }, additionalProperties: false
+  }, true),
+  tool("market_review", "Review a public stock symbol", "Use a user-supplied or authorized visible-page symbol for compact numerical entry/exit research. No account or browser access is inferred. Request includeChart only when OHLCV chart data is needed.", {
+    type: "object", properties: { symbol: { type: "string" }, range: { type: "string", enum: ["6M", "1Y", "MAX"] }, includeChart: { type: "boolean" } }, required: ["symbol"], additionalProperties: false
+  }, true, false, { ui: { resourceUri: HOLDING_CHART_UI_URI } }),
   tool("setup_status", "Check VigilAlpha setup", "Check local account connection, Keychain availability, optional market source and derived snapshot status. This tool never returns credentials.", {
     type: "object",
     properties: {},
@@ -323,7 +333,7 @@ async function setupStatusTool(service, snapshotStore) {
   const [status, localData] = await Promise.all([service.status(), snapshotStore.status()]);
   return {
     product: "VigilAlpha",
-    version: "0.1.0-dev.10",
+    version: "0.1.0-dev.12",
     configured: status.credentials.configured,
     credentialSource: status.credentials.source,
     accountVerifiedAt: status.config.accountVerifiedAt,

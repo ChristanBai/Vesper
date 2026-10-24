@@ -33,6 +33,26 @@ review. It is not a profit promise, price oracle or trading executor.
    explicitly asked for a status report.
 10. Use `local_data` for status/export. Deletion requires the user's explicit confirmation and the
    tool's exact confirmation phrase.
+11. For scheduled macro events use `event_review`; lead with checkedAt and freshness. Meeting
+    dates are known schedules, never predicted decisions. Refresh official sources when stale.
+12. For a public or browser-visible symbol use `market_review`. Default to its compact output;
+    set includeChart only when a chart is needed. Do not fetch a private account for this path.
+    Verify the host can access the page before claiming to have read it. A ChatGPT side panel
+    alone does not grant page access or connect this local stdio server.
+
+ConditionalResearch describes three executable experimental rules and their failure conditions.
+Its markers are research candidates, not broker executions; zero production weight remains.
+The numerical core is shared with historical simulation. Parameters are hypotheses, not a learned
+best buy/sell formula. A flat/positive simulated state does not establish customer suitability.
+
+## Research coordination
+
+For multi-source company, macro/event or strategy research, read
+[research-team.md](references/research-team.md). Keep the plugin as the installable account/tool/UI
+boundary. When the host exposes delegation and the task permits it, use bounded subagents for
+independent research questions; otherwise perform the same roles sequentially. Do not require
+another model API key or claim a persistent agent is running merely because this skill is installed.
+Simple account questions use the default flow without a research team.
 
 ## Presentation
 

@@ -50,7 +50,7 @@ export function mapPositions(payload) {
       marketValue,
       unrealizedPnL,
       unrealizedPnLPercent: costBasis ? unrealizedPnL / costBasis : 0,
-      quantityAvailableForTrading: number(position?.quantityAvailableForTrading),
+      quantityAvailableForTrading: numberOrNull(position?.quantityAvailableForTrading),
       createdAt: position?.createdAt || null
     };
   });

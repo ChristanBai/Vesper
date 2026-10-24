@@ -5,6 +5,7 @@ import { evaluateStrategies } from "./strategies.mjs";
 import { buildShadowDecision } from "./decision.mjs";
 import { PATTERN_SPECS, patternRegistry } from "./research.mjs";
 import { validatePattern } from "./validation.mjs";
+import { conditionalPatterns } from "./conditional-patterns.mjs";
 
 export async function portfolioReview(service, store, { refresh = true, saveSnapshot = true } = {}) {
   const snapshot = await service.snapshot({ force: Boolean(refresh) });
@@ -54,7 +55,7 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
   let history = null;
   let marketError = null;
   try {
-    history = await service.history(normalized, range, "auto");
+    history = await loadDailyHistory(service, normalized, range);
   } catch (error) {
     marketError = safeMessage(error);
   }
@@ -75,6 +76,7 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
     positionLimit: service.config?.riskLimits?.maxPositionWeightPercent,
     drawdownLimit: service.config?.riskLimits?.drawdownWarningPercent
   });
+  const conditionalResearch = conditionalPatterns(history);
   return {
     product: "VigilAlpha",
     reviewVersion: "vigilalpha.holding-review.v1",
@@ -87,6 +89,7 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
       fundamentals: { status: "UNAVAILABLE", reason: "No approved point-in-time fundamentals source configured." }
     },
     strategies: strategy,
+    conditionalResearch,
     riskVeto,
     signal: selectSignal(riskVeto, strategy.consensus),
     chart: {
@@ -94,7 +97,7 @@ export async function holdingReview(service, symbol, { refresh = false, range = 
       bars: history?.bars || [],
       averageCost: Number.isFinite(Number(position.averagePricePaid)) ? Number(position.averagePricePaid) : null,
       executionMarkers: tradeMarkers(snapshot.orders || [], normalized),
-      strategyMarkers: []
+      strategyMarkers: conditionalResearch.markers
     },
     tradeReview: publicTradeReview(tradeReview, snapshot.historyCompleteness?.orders),
     disclaimer: "Research signal only. It is not an order or a guarantee of profit."
@@ -105,7 +108,7 @@ export async function strategyReview(service, symbol, { range = "MAX" } = {}) {
   const normalized = normalizeSymbol(symbol);
   let history;
   try {
-    history = await service.history(normalized, range, "auto");
+    history = await loadDailyHistory(service, normalized, range);
   } catch (error) {
     return {
       product: "VigilAlpha",
@@ -123,7 +126,8 @@ export async function strategyReview(service, symbol, { range = "MAX" } = {}) {
     range,
     marketData: { status: "AVAILABLE", source: history.source || "unknown", cutoff: history.bars?.at(-1)?.time || null },
     research: patternRegistry(),
-    validation: PATTERN_SPECS.map((pattern) => validatePattern(pattern, history.bars || [])),
+    validation: PATTERN_SPECS.map((pattern) => validatePattern(pattern, history.bars || [], { interval: history.interval })),
+    conditionalResearch: conditionalPatterns(history),
     ...evaluateStrategies({ bars: history.bars || [], cutoff: history.bars?.at(-1)?.time || null, parameters: service.config?.strategyParameters, parameterVersion: service.config?.parameterVersion })
   };
 }
@@ -138,7 +142,7 @@ export async function decisionReview(service, shadowStore, symbol, { refresh = t
   let history = null;
   let marketError = null;
   try {
-    history = await service.history(normalized, range, "auto");
+    history = await loadDailyHistory(service, normalized, range);
   } catch (error) {
     marketError = safeMessage(error);
   }
@@ -178,8 +182,37 @@ export async function decisionReview(service, shadowStore, symbol, { refresh = t
 }
 
 export async function learningReview(service, shadowStore) {
-  const outcomesAdded = await shadowStore.evaluatePending(async (symbol) => (await service.history(symbol, "MAX", "auto")).bars || []);
+  const outcomesAdded = await shadowStore.evaluatePending(async (symbol) => loadDailyHistory(service, symbol, "MAX"));
   return { product: "VigilAlpha", ...(await shadowStore.review()), outcomesAdded: outcomesAdded.length, blackstonePolicy: "Sanitized summaries only; human approval never mutates runtime automatically." };
+}
+
+export async function marketReview(service, symbol, { range = "1Y", includeChart = false } = {}) {
+  const normalized = normalizeSymbol(symbol);
+  const history = await loadDailyHistory(service, normalized, range);
+  const conditionalResearch = conditionalPatterns(history);
+  return {
+    product: "VigilAlpha", reviewVersion: "vigilalpha.market-review.v1", symbol: normalized,
+    sourceScope: "PUBLIC_SYMBOL_ONLY", accountContext: "NOT_PROVIDED",
+    browserAccess: "Symbol supplied by user or an authorized host; this tool does not read browser tabs.",
+    holding: { symbol: normalized }, riskVeto: { active: null, reasons: [] }, signal: "RESEARCH_ONLY",
+    evidence: { market: { source: history.source || "unknown", range, cutoff: history.bars?.at(-1)?.time || null } },
+    marketData: { source: history.source || "unknown", currency: history.currency || null,
+      interval: history.interval, sourceCutoff: history.bars?.at(-1)?.time || null },
+    conditionalResearch, researchSources: patternRegistry().sources,
+    chart: { status: includeChart ? (history.bars?.length ? "AVAILABLE" : "UNAVAILABLE") : "NOT_REQUESTED",
+      bars: includeChart ? (history.bars || []).slice(-120) : [],
+      strategyMarkers: includeChart ? conditionalResearch.markers : [], executionMarkers: [], averageCost: null },
+    executionAuthority: "NONE",
+    disclaimer: "No account facts, position sizing or production signal is inferred from a browser symbol."
+  };
+}
+
+async function loadDailyHistory(service, symbol, range) {
+  const history = await service.history(symbol, range, "1D");
+  if (!["1D", "1d", "1day"].includes(history?.interval)) {
+    throw new Error("Verified daily history is required for daily strategies and session outcomes.");
+  }
+  return history;
 }
 
 export function portfolioRiskVeto(brief, riskLimits = {}) {

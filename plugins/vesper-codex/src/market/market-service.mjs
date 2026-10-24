@@ -176,9 +176,13 @@ export class MarketService {
     if (requestedInterval !== "auto" && !intervalConfig?.yahooInterval) {
       throw new Error(`Yahoo does not support ${requestedInterval} intervals`);
     }
-    const range = intervalConfig
-      ? { range: intervalConfig.yahooRange, interval: intervalConfig.yahooInterval }
-      : RANGE_CONFIG[String(requestedRange).toUpperCase()] || RANGE_CONFIG["1Y"];
+    const requestedRangeConfig = RANGE_CONFIG[String(requestedRange).toUpperCase()] || RANGE_CONFIG["1Y"];
+    let range = requestedRangeConfig;
+    if (requestedInterval === "1D") {
+      range = { range: requestedRangeConfig.range, interval: "1d" };
+    } else if (intervalConfig) {
+      range = { range: intervalConfig.yahooRange, interval: intervalConfig.yahooInterval };
+    }
     const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
     url.searchParams.set("range", range.range);
     url.searchParams.set("interval", range.interval);
@@ -230,6 +234,7 @@ export class MarketService {
     return {
       symbol,
       currency: inferCurrency(symbol),
+      currencySource: "inferred",
       exchange: "NASDAQ",
       bars,
       source: "Nasdaq",
@@ -269,11 +274,12 @@ export class MarketService {
     return {
       symbol,
       currency: payload?.meta?.currency || inferCurrency(symbol),
+      currencySource: payload?.meta?.currency ? "provider" : "inferred",
       exchange: payload?.meta?.exchange || null,
       bars,
       source: "Twelve Data",
       range: requestedRange,
-      interval: requestedInterval === "auto" ? interval : requestedInterval,
+      interval: payload?.meta?.interval || (requestedInterval === "auto" ? interval : requestedInterval),
       delayedByMinutes: marketDelayMinutes(symbol),
       updatedAt: new Date().toISOString()
     };
@@ -386,9 +392,11 @@ export function normalizeYahooHistory(payload, sourceMetadata = {}) {
   return {
     symbol: result.meta?.symbol || null,
     currency: result.meta?.currency || null,
+    currencySource: result.meta?.currency ? "provider" : null,
     exchange: result.meta?.exchangeName || null,
     bars,
-    ...sourceMetadata
+    ...sourceMetadata,
+    interval: result.meta?.dataGranularity || sourceMetadata.interval || null
   };
 }
 

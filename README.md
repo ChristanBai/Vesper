@@ -6,10 +6,11 @@ VigilAlpha is a local-first, strictly read-only Trading 212 risk-review plugin f
 account facts, transaction markers, data-quality checks, strategy evidence and conditional risk
 decisions into one conversation. It cannot place, change or cancel an order.
 
-Current development version: `0.1.0-dev.10` · License: MIT · Platform: macOS first
+Current development version: `0.1.0-dev.12` · License: MIT · Platform: macOS first
 
-> Development release candidate. GitHub `v1.0` and the public Codex plugin directory are not
-> released yet. VigilAlpha does not guarantee profit and is not a substitute for regulated advice.
+> Development prerelease: conditional research is experimental and account/UI acceptance is still
+> incomplete. Public `v1.0` and plugin-directory approval remain separate gates. No strategy here
+> is a promise of investment profit.
 
 ## What it does
 
@@ -17,12 +18,22 @@ Current development version: `0.1.0-dev.10` · License: MIT · Platform: macOS f
 - Reviews concentration, account reconciliation, missing data and independent risk vetoes.
 - Reconstructs owned-position transactions and chart markers from read-only account history.
 - Explains six strategy modules without presenting an experimental rule as validated.
+- Makes three numerical entry/exit research rules inspectable and distinguishes them from fills.
+- Lists dated official event schedules, observation conditions and stale-source warnings.
+- Reviews public symbols without refreshing a private account; chart payloads are opt-in.
 - Saves owner-only derived snapshots for genuine “what changed?” comparisons.
-- Produces conditional `ADD`, `HOLD`, `REDUCE`, `EXIT` or `WAIT` research states; users execute
-  any action themselves in Trading 212.
+- Produces conditional shadow `REDUCE` plans for supported concentration breaches and `WAIT`
+  when evidence is incomplete. Directional `ADD` and `EXIT` production plans remain blocked.
+- Keeps daily strategy validation and shadow outcomes on explicitly identified daily bars.
+- Evaluates shadow outcomes only with verified matching price currencies and eligible decisions.
 
 The formal interface is the Codex conversation and its inline cards. The former Vesper browser
 dashboard remains available for one compatibility release but is not the product's default path.
+
+![Original synthetic example of conditional trend rules](docs/images/conditional-research-example.svg)
+
+The image is generated from synthetic data by the same rule core. It illustrates research
+conditions, not a real account, live signal or investment return.
 
 ## Requirements
 
@@ -44,8 +55,8 @@ Restart Codex and open a new conversation. Select `VigilAlpha` under `+` → Mor
 `@VigilAlpha`, or use `/plugins` in Codex CLI. Ask “检查设置和当前运行版本” to open the secure
 setup card. Never paste an API key or secret into chat.
 
-The future downloadable package and checksum will be published on the
-[GitHub Releases page](https://github.com/ChristanBai/Vesper/releases) after the release gates pass.
+Download the development ZIP and checksum from the
+[dev.12 prerelease](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.12).
 See [the installation guide](docs/INSTALL.md) for permissions, setup and verification.
 
 ## Public tools
@@ -56,6 +67,8 @@ See [the installation guide](docs/INSTALL.md) for permissions, setup and verific
 | `portfolio_review` | Portfolio risk, risk vetoes, data quality and review queue |
 | `holding_review` | Account facts, evidence, strategy modules and research signal |
 | `strategy_review` | Strategy source, maturity, validation and cost disclosure |
+| `market_review` | Compact public-symbol conditional rules; optional last-120-bar chart |
+| `event_review` | Dated official calendar snapshot, scenarios and freshness limitations |
 | `decision_review` | Conditional shadow action, quantity and estimated economics |
 | `learning_review` | Shadow outcomes, failures and human promotion gate |
 | `portfolio_changes` | Compare actual saved derived snapshots |
@@ -94,7 +107,7 @@ Build the same installable archive used by CI:
 
 ```bash
 ./scripts/build-release.sh
-(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.10.zip.sha256)
+(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.12.zip.sha256)
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the current
@@ -105,3 +118,9 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the cu
 Passing unit tests proves deterministic code paths, not investment performance. A strategy remains
 experimental until its historical, out-of-sample, cost and shadow-observation gates are recorded
 and a human approves promotion. Missing evidence produces `WAIT`, not a fabricated direction.
+
+Browser scope: `market_review` accepts symbols supplied by a user or an authorized browser host.
+It does not itself read Chrome tabs. A ChatGPT sidebar needs its own supported browser/MCP access;
+installing this local stdio plugin does not establish web-side connectivity. Browser-to-ChatGPT
+acceptance remains open. The first scheduled-event snapshot was checked on 2026-10-24 and expires
+for reliance after seven days; it is not a live news feed or Fed decision forecast.

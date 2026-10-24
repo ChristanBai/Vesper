@@ -131,6 +131,8 @@ export function relativeStrengthIndex(values, period = 14) {
     if (change >= 0) gains += change;
     else losses += Math.abs(change);
   }
+  // With no movement either way, use a neutral reading instead of positive momentum.
+  if (gains === 0 && losses === 0) return 50;
   if (losses === 0) return 100;
   const relativeStrength = (gains / period) / (losses / period);
   return 100 - 100 / (1 + relativeStrength);

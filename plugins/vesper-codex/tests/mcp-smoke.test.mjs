@@ -56,6 +56,12 @@ test("MCP stdio server initializes and advertises VigilAlpha plus legacy tools",
   write(child, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
   const tools = await waitFor(responses, 2);
   const names = tools.result.tools.map((tool) => tool.name);
+  assert.ok(names.includes("research_notebook"));
+  write(child, { jsonrpc: "2.0", id: 27, method: "tools/call", params: { name: "research_notebook", arguments: {} } });
+  const notebook = await waitFor(responses, 27);
+  assert.equal(notebook.result.structuredContent.runtimeImport, false);
+  assert.equal(notebook.result.structuredContent.automaticLearning, "PAUSED");
+  assert.equal(notebook.result.structuredContent.candidates.length, 4);
   for (const required of ["setup_status", "portfolio_review", "holding_review", "strategy_review", "decision_review", "learning_review", "portfolio_changes", "monitor_review", "local_data", "configure_credentials", "configure_preferences"]) {
     assert.ok(names.includes(required), `missing ${required}`);
   }

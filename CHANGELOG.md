@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-dev.15 — 2026-10-25
+
+### 中文
+
+- GitHub名称统一为VigilAlpha，旧名技能转向当前入口，不再默认启动旧仪表盘。
+- 新增无账户研究笔记本及本地Markdown导出：4张候选单、来源、实验/反证/费用/基准和人工决定。结果未运行，不自动金融晋级。
+- 自动学习保持PAUSED，只读和凭据边界不变。
+
+### English
+
+- Unify GitHub branding as VigilAlpha; route legacy names through the current skill.
+- Add an account-free research notebook and non-overwriting Markdown export with four candidate sheets and explicit evidence gaps. No runtime import or automatic promotion.
+- Automatic learning remains PAUSED; existing read-only and credential boundaries remain.
+
+
 ## 0.1.0-dev.14 — 2026-10-24
 
 ### 中文

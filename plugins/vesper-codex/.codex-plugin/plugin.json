@@ -1,13 +1,13 @@
 {
   "name": "vigilalpha-codex",
-  "version": "0.1.0-dev.14",
+  "version": "0.1.0-dev.15",
   "description": "Local-first, read-only Trading 212 portfolio risk intelligence in Codex.",
   "author": {
     "name": "ChristanBai",
     "url": "https://github.com/ChristanBai"
   },
-  "homepage": "https://github.com/ChristanBai/Vesper",
-  "repository": "https://github.com/ChristanBai/Vesper",
+  "homepage": "https://github.com/ChristanBai/VigilAlpha",
+  "repository": "https://github.com/ChristanBai/VigilAlpha",
   "license": "MIT",
   "keywords": [
     "trading212",
@@ -34,7 +34,7 @@
       "和上次相比发生了什么变化？",
       "分析 Nvidia 是否进入降低风险阶段"
     ],
-    "websiteURL": "https://github.com/ChristanBai/Vesper",
+    "websiteURL": "https://github.com/ChristanBai/VigilAlpha",
     "brandColor": "#0F172A",
     "screenshots": []
   },

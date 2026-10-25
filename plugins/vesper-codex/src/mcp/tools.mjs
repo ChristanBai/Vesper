@@ -9,6 +9,7 @@ import { buildPortfolioBrief } from "../analysis/portfolio-brief.mjs";
 import { calculateTradeReview, createRuntime, tradeMarkers } from "../runtime.mjs";
 import { decisionReview, holdingReview, learningReview, marketReview, portfolioReview, strategyReview } from "../vigilalpha/reviews.mjs";
 import { eventReview } from "../vigilalpha/events.mjs";
+import { researchNotebook } from "../vigilalpha/research-notebook.mjs";
 import { HOLDING_CHART_UI_URI, PORTFOLIO_FLOW_UI_URI, RISK_TIMELINE_UI_URI, SETUP_UI_URI } from "../vigilalpha/inline-ui.mjs";
 import { DerivedSnapshotStore } from "../vigilalpha/snapshot-store.mjs";
 import { ShadowLearningStore } from "../vigilalpha/learning-store.mjs";
@@ -33,6 +34,7 @@ export function createToolRuntime({ env = process.env } = {}) {
     definitions: TOOL_DEFINITIONS,
     async call(name, args = {}) {
       if (name === "event_review") return eventReview(args);
+      if (name === "research_notebook") return researchNotebook();
       if (name === "configure_credentials") {
         const result = await configureCredentialsTool(args, env);
         runtimePromise = null;
@@ -103,6 +105,9 @@ export function createToolRuntime({ env = process.env } = {}) {
 const LEGACY_TOOL_NAMES = new Set(["setup", "start_vesper", "holdings", "pies", "trades", "quote", "history", "dashboard", "news", "analysis", "backtest", "report", "daily_brief", "order_history"]);
 
 export const TOOL_DEFINITIONS = [
+  tool("research_notebook", "Open the VigilAlpha strategy research notebook", "Read the account-free candidate/source registry, validation gaps and local Markdown export command. No credentials, network, automatic learning or strategy promotion. Notebook edits never change runtime parameters.", {
+    type: "object", properties: {}, additionalProperties: false
+  }, true),
   tool("event_review", "Review upcoming official events", "Show a dated official-calendar snapshot, upcoming scheduled events, uncertainty and source freshness. It does not predict the Fed decision or stock returns.", {
     type: "object", properties: { asOf: { type: "string" }, days: { type: "integer", minimum: 1, maximum: 90 } }, additionalProperties: false
   }, true),
@@ -333,7 +338,7 @@ async function setupStatusTool(service, snapshotStore) {
   const [status, localData] = await Promise.all([service.status(), snapshotStore.status()]);
   return {
     product: "VigilAlpha",
-    version: "0.1.0-dev.14",
+    version: "0.1.0-dev.15",
     configured: status.credentials.configured,
     credentialSource: status.credentials.source,
     accountVerifiedAt: status.config.accountVerifiedAt,

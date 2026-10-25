@@ -1,13 +1,13 @@
 # VigilAlpha
 
-[English](README.md) · **简体中文** · [下载 dev.14](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.14)
+[English](README.md) · **简体中文** · [下载 dev.15](https://github.com/ChristanBai/VigilAlpha/releases/tag/v0.1.0-dev.15)
 
 ![VigilAlpha](plugins/vesper-codex/assets/app-icon.svg)
 
 在 Codex 中连接 Trading 212，把持仓事实、价格图表、已知事件和研究条件放进同一条决策路径。
 先看组合里哪里需要关注，再研究单只股票的证据、进入条件和失效条件。
 
-当前版本 `0.1.0-dev.14` 是公开开发预发布版，适合体验与研究反馈。它不能下单，也不保证盈利。
+当前版本 `0.1.0-dev.15` 是公开开发预发布版，适合体验与研究反馈。它不能下单，也不保证盈利。
 软件发布、客户使用路径验收与策略有效性分别核验；完整浏览器侧栏路径仍未验收。
 
 ## 一条连贯的研究路径
@@ -59,7 +59,7 @@ flowchart LR
 账户分析需要 Trading 212 Invest／Stocks ISA 只读 API 权限。
 
 ```bash
-git clone https://github.com/ChristanBai/Vesper.git VigilAlpha
+git clone https://github.com/ChristanBai/VigilAlpha.git VigilAlpha
 cd VigilAlpha
 codex plugin marketplace add "$PWD"
 codex plugin add vigilalpha-codex@vigilalpha
@@ -91,3 +91,17 @@ node scripts/preview-workspace.mjs
 最后一个命令启动仅绑定本机的合成界面预览，不读取账户、不抓行情；Ctrl+C 关闭。
 发布检查见 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)，研究与样本外验证要求见[研究框架](docs/RESEARCH_FRAMEWORK.md)。
 MIT 许可证。策略晋级需要独立证据和人工批准，界面变漂亮或测试通过都不能证明收益。
+
+## 策略学习有形入口
+
+在 Codex 中问「打开 VigilAlpha 策略研究笔记本」，调用 `research_notebook`，无需账户密钥，返回来源、候选规则、反证与验证缺口。
+导出实体文件（目标目录必须不存在）：
+
+```bash
+cd plugins/vesper-codex
+node scripts/research-notebook.mjs export /absolute/path/to/new-notebook
+```
+
+生成 INDEX.md、registry.json 和4张规则研究单，含可计算条件、来源、冻结实验、费用/基准、反证和人工决定；未运行结果标 NOT_RUN。
+用 Obsidian 打开此普通Markdown文件夹；既有Blackstone按其收录流程处理，不把模板当已验证知识。
+自动学习关闭，笔记不会改变运行参数。旧称 Vesper，以及会话中的 Whisper MCP/Panel，统一以 VigilAlpha 介绍，旧技术标识保留兼容。

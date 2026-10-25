@@ -2,7 +2,7 @@ import { createToolRuntime } from "./tools.mjs";
 import { listInlineResources, readInlineResource, readVisualizationResource } from "../vigilalpha/inline-ui.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
-const SERVER_VERSION = "0.1.0-dev.14";
+const SERVER_VERSION = "0.1.0-dev.15";
 
 export async function runStdioServer({ env = process.env } = {}) {
   const toolRuntime = createToolRuntime({ env });
@@ -118,6 +118,7 @@ async function handleMessage(raw, toolRuntime) {
 }
 
 function summarize(name, data) {
+  if (name === "research_notebook") return `VigilAlpha research notebook: ${data.candidates.length} candidate sheets; learning PAUSED; runtime import disabled. ${data.exportCommand}`;
   if (name === "setup_status") return `VigilAlpha ${data.configured ? "ready" : "needs setup"}; mode ${data.mode}; saved snapshots ${data.localData?.snapshotCount || 0}.`;
   if (name === "portfolio_review") return `VigilAlpha portfolio review at ${data.sourceCutoff || "unknown cutoff"}: ${data.summary?.totalValue ?? "unknown"} ${data.summary?.currency || ""}; signal ${data.signal}; risk veto ${data.riskVeto?.active ? "active" : "clear"}.`;
   if (name === "holding_review") return `${data.holding?.symbol || "Holding"}: ${data.signal}; risk veto ${data.riskVeto?.active ? "active" : "clear"}; consensus ${data.strategies?.consensus?.direction || "unavailable"}.`;

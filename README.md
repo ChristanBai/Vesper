@@ -8,7 +8,7 @@ VigilAlpha is a local-first, strictly read-only Trading 212 risk-review plugin f
 account facts, transaction markers, data-quality checks, strategy evidence and conditional risk
 decisions into one conversation. It cannot place, change or cancel an order.
 
-Current development version: `0.1.0-dev.14` · License: MIT · Platform: macOS first
+Current development version: `0.1.0-dev.15` · License: MIT · Platform: macOS first
 
 > Development prerelease: conditional research is experimental and account/UI acceptance is still
 > incomplete. Public `v1.0` and plugin-directory approval remain separate gates. No strategy here
@@ -88,7 +88,7 @@ conditions, not a real account, live signal or investment return.
 ## Install from source
 
 ```bash
-git clone https://github.com/ChristanBai/Vesper.git VigilAlpha
+git clone https://github.com/ChristanBai/VigilAlpha.git VigilAlpha
 cd VigilAlpha
 codex plugin marketplace add "$PWD"
 codex plugin add vigilalpha-codex@vigilalpha
@@ -99,7 +99,7 @@ Restart Codex and open a new conversation. Select `VigilAlpha` under `+` → Mor
 setup card. Never paste an API key or secret into chat.
 
 Download the development ZIP and checksum from the
-[dev.14 prerelease](https://github.com/ChristanBai/Vesper/releases/tag/v0.1.0-dev.14).
+[dev.15 prerelease](https://github.com/ChristanBai/VigilAlpha/releases/tag/v0.1.0-dev.15).
 See [the installation guide](docs/INSTALL.md) for permissions, setup and verification.
 
 ## Public tools
@@ -152,7 +152,7 @@ Build the same installable archive used by CI:
 
 ```bash
 ./scripts/build-release.sh
-(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.14.zip.sha256)
+(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.15.zip.sha256)
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the current
@@ -172,3 +172,19 @@ It does not itself read Chrome tabs. A ChatGPT sidebar needs its own supported b
 installing this local stdio plugin does not establish web-side connectivity. Browser-to-ChatGPT
 acceptance remains open. The first scheduled-event snapshot was checked on 2026-10-24 and expires
 for reliance after seven days; it is not a live news feed or Fed decision forecast.
+
+## Tangible strategy research
+
+Ask Codex to open the VigilAlpha strategy research notebook (`research_notebook`). No account setup is needed.
+Export a local evidence workspace to a NEW directory:
+
+```bash
+cd plugins/vesper-codex
+node scripts/research-notebook.mjs export /absolute/path/to/new-notebook
+```
+
+INDEX.md, registry.json and four candidate sheets cover numerical rules, sources, frozen experiments,
+costs/benchmarks, counterevidence and human decisions. Results begin as NOT_RUN. Open this plain Markdown
+folder in Obsidian; existing governed Vaults must use their ingestion rules. No account data is exported.
+Automatic learning is PAUSED; edits never become runtime parameters. VigilAlpha is the current name;
+Vesper and conversational Whisper MCP/Panel names route through a compatibility skill. Technical IDs remain compatible.

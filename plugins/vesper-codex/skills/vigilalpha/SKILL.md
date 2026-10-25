@@ -45,6 +45,15 @@ Its markers are research candidates, not broker executions; zero production weig
 The numerical core is shared with historical simulation. Parameters are hypotheses, not a learned
 best buy/sell formula. A flat/positive simulated state does not establish customer suitability.
 
+## Strategy learning channel
+
+For 策略学习 / 研究笔记本 / sources and experiments, call `research_notebook` first; no account setup is needed.
+It lists source-linked candidate sheets and the local Markdown export command. Export only when requested,
+to a new folder; never overwrite notes. Existing Blackstone ingestion must follow its Vault rules.
+Keep one question per research session and reuse unchanged sources. Automatic learning remains PAUSED;
+notebook edits are evidence only, never runtime parameters. `learning_review` separately reports recorded
+shadow outcomes, not evidence that a newly collected paper has been validated.
+
 ## Research coordination
 
 For multi-source company, macro/event or strategy research, read

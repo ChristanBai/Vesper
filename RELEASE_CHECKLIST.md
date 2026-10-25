@@ -1,3 +1,16 @@
+# VigilAlpha dev.15 publication gates — 2026-10-25
+
+- [x] Current source: 58 syntax checks and 96 tests, credential-free notebook tool and non-overwriting exports.
+- [x] Tangible local notebook exported and Blackstone project linked; Vault maintain/verify PASS. No financial activation.
+- [x] GitHub renamed VigilAlpha; current bilingual installation URLs and compatibility skills updated.
+- [ ] Exact committed clone and independent extracted artifact checks.
+- [ ] Current/history pattern scan, hosted CI and public download/checksum/startup verification.
+- [ ] New host mounts dev.15; broker/side-panel and prospective strategy gates remain open.
+
+Automatic learning remains PAUSED. Existing development releases and historical checks below remain evidence for their own versions.
+
+---
+
 # VigilAlpha dev.14 prerelease acceptance
 
 2026-10-24. This checklist is pre-publication source evidence; exact commit, hosted CI and downloaded

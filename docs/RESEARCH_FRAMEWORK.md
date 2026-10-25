@@ -88,3 +88,14 @@ Every experiment must freeze / 每次实验先冻结：
 Refresh latency is a separate product metric: broker fill/publication to first successfully observed history result, measured only where those timestamps are available. Retrieval time alone cannot establish that latency. Current real post-fill latency is unmeasured.
 
 研究角色可由有界子任务执行，数值计算复用本地代码；没有常驻多模型服务、自动训练或消耗剩余额度的循环。用户的 Blackstone 每日任务是本地可选流程，不是所有客户默认拥有的服务。候选金融规则仍需既有前瞻门禁与明确人工批准，软件测试不证明盈利。
+
+## Physical learning channel / 实体学习渠道
+
+As of 2026-10-25, `research_notebook` is an account-free entry point and
+`node scripts/research-notebook.mjs export /absolute/path/to/new-notebook` creates four Markdown candidate sheets,
+INDEX.md and a JSON snapshot. Existing directories are refused; there is no runtime import.
+Use the sheets to freeze the hypothesis, data, trials, costs, baseline, counterevidence and decision.
+NOT_RUN is not a failed or successful financial result. Source references are inherited candidates, not newly verified papers.
+
+自动学习保持关闭；每次按需只研究一个问题、复用未变来源。Blackstone只按其流程收录脱敏来源和研究结果，
+不直接把工作模板变成已验证知识或运行参数。公开版本不携带本机Vault、私有研究目录或账户记录。

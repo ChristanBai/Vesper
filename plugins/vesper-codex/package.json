@@ -1,12 +1,12 @@
 {
   "name": "vigilalpha-codex",
-  "version": "0.1.0-dev.14",
+  "version": "0.1.0-dev.15",
   "description": "Local-first, read-only Trading 212 risk intelligence plugin for Codex",
   "type": "module",
   "private": true,
   "author": "ChristanBai",
-  "homepage": "https://github.com/ChristanBai/Vesper",
-  "repository": "https://github.com/ChristanBai/Vesper",
+  "homepage": "https://github.com/ChristanBai/VigilAlpha",
+  "repository": "https://github.com/ChristanBai/VigilAlpha",
   "engines": {
     "node": ">=22"
   },

@@ -10,7 +10,7 @@
 ## Install the plugin
 
 ```bash
-git clone https://github.com/ChristanBai/Vesper.git
+git clone https://github.com/ChristanBai/VigilAlpha.git
 cd Vesper
 codex plugin marketplace add "$PWD"
 codex plugin add vigilalpha-codex@vigilalpha

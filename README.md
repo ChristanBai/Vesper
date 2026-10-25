@@ -8,7 +8,7 @@ VigilAlpha is a local-first, strictly read-only Trading 212 risk-review plugin f
 account facts, transaction markers, data-quality checks, strategy evidence and conditional risk
 decisions into one conversation. It cannot place, change or cancel an order.
 
-Current development version: `0.1.0-dev.15` · License: MIT · Platform: macOS first
+Current development version: `0.1.0-dev.16` · License: MIT · Platform: macOS first
 
 > Development prerelease: conditional research is experimental and account/UI acceptance is still
 > incomplete. Public `v1.0` and plugin-directory approval remain separate gates. No strategy here
@@ -99,7 +99,7 @@ Restart Codex and open a new conversation. Select `VigilAlpha` under `+` → Mor
 setup card. Never paste an API key or secret into chat.
 
 Download the development ZIP and checksum from the
-[dev.15 prerelease](https://github.com/ChristanBai/VigilAlpha/releases/tag/v0.1.0-dev.15).
+[dev.16 prerelease](https://github.com/ChristanBai/VigilAlpha/releases/tag/v0.1.0-dev.16).
 See [the installation guide](docs/INSTALL.md) for permissions, setup and verification.
 
 ## Public tools
@@ -152,7 +152,7 @@ Build the same installable archive used by CI:
 
 ```bash
 ./scripts/build-release.sh
-(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.15.zip.sha256)
+(cd dist && shasum -a 256 -c vigilalpha-codex-0.1.0-dev.16.zip.sha256)
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and the current
@@ -188,3 +188,5 @@ costs/benchmarks, counterevidence and human decisions. Results begin as NOT_RUN.
 folder in Obsidian; existing governed Vaults must use their ingestion rules. No account data is exported.
 Automatic learning is PAUSED; edits never become runtime parameters. VigilAlpha is the current name;
 Vesper and conversational Whisper MCP/Panel names route through a compatibility skill. Technical IDs remain compatible.
+
+Use `node scripts/validate-research.mjs /absolute/public-history.json /absolute/new-report-directory` to produce hash-linked historical evidence with all fixed candidate results, same-cost baseline and continuous drawdown. It makes no network/account request; financial validity and prospective evidence remain unestablished.

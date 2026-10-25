@@ -1,13 +1,13 @@
 # VigilAlpha
 
-[English](README.md) · **简体中文** · [下载 dev.15](https://github.com/ChristanBai/VigilAlpha/releases/tag/v0.1.0-dev.15)
+[English](README.md) · **简体中文** · [下载 dev.16](https://github.com/ChristanBai/VigilAlpha/releases/tag/v0.1.0-dev.16)
 
 ![VigilAlpha](plugins/vesper-codex/assets/app-icon.svg)
 
 在 Codex 中连接 Trading 212，把持仓事实、价格图表、已知事件和研究条件放进同一条决策路径。
 先看组合里哪里需要关注，再研究单只股票的证据、进入条件和失效条件。
 
-当前版本 `0.1.0-dev.15` 是公开开发预发布版，适合体验与研究反馈。它不能下单，也不保证盈利。
+当前版本 `0.1.0-dev.16` 是公开开发预发布版，适合体验与研究反馈。它不能下单，也不保证盈利。
 软件发布、客户使用路径验收与策略有效性分别核验；完整浏览器侧栏路径仍未验收。
 
 ## 一条连贯的研究路径
@@ -105,3 +105,5 @@ node scripts/research-notebook.mjs export /absolute/path/to/new-notebook
 生成 INDEX.md、registry.json 和4张规则研究单，含可计算条件、来源、冻结实验、费用/基准、反证和人工决定；未运行结果标 NOT_RUN。
 用 Obsidian 打开此普通Markdown文件夹；既有Blackstone按其收录流程处理，不把模板当已验证知识。
 自动学习关闭，笔记不会改变运行参数。旧称 Vesper，以及会话中的 Whisper MCP/Panel，统一以 VigilAlpha 介绍，旧技术标识保留兼容。
+
+用 `node scripts/validate-research.mjs /absolute/public-history.json /absolute/new-report-directory` 生成含输入哈希、全部固定候选结果、同费用基准和连续回撤的历史报告。命令不访问网络或账户；历史报告不等于前瞻验证或已建立金融有效性。

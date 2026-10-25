@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.0-dev.16 — 2026-10-25
+
+### 中文
+
+- 修复历史验证的分段现金重置与整体回撤口径，主结果使用连续测试路径；分段仅作独立诊断。
+- 基准采用同费用与期末估值口径；拒绝无效/重复/乱序价格和费用，排除当前及未来日期。
+- 新增离线研究报告命令，固定输入哈希、来源与时间、全部候选正负结果和弃权，不自动晋级。
+- 金融有效性尚未建立，实验权重保持零，自动学习继续关闭。
+
+### English
+
+- Measure headline historical validation continuously instead of stitching reset folds; keep folds diagnostic.
+- Compare against a same-cost, same-mark-to-market baseline and reject invalid chronology, OHLC or costs; exclude incomplete/future dates.
+- Add an offline evidence report command retaining dataset hashes, provenance, all candidate outcomes and abstentions. No automatic financial promotion.
+- Financial validity remains unestablished and idle learning remains paused.
+
+
 ## 0.1.0-dev.15 — 2026-10-25
 
 ### 中文

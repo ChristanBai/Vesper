@@ -1,3 +1,14 @@
+# VigilAlpha dev.16 validation integrity — 2026-10-25
+
+- [x] Analytic continuous-path/fee-comparison, cross-fold peak, future-date and invalid-input regressions.
+- [x] Offline runner exercised on frozen public snapshots; replay output is byte-identical; existing destination refusal verified.
+- [ ] Exact clone and extracted artifact full checks, hosted CI and public download/startup checks.
+- [ ] General financial effectiveness, adjustment/dividend evidence and prospective samples remain unaccepted.
+
+New source changes do not retroactively replace dev.15 host acceptance evidence. Prior version records follow.
+
+---
+
 # VigilAlpha dev.15 publication gates — 2026-10-25
 
 - [x] Current source: 58 syntax checks and 96 tests, credential-free notebook tool and non-overwriting exports.

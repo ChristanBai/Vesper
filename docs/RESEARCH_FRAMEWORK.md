@@ -99,3 +99,14 @@ NOT_RUN is not a failed or successful financial result. Source references are in
 
 自动学习保持关闭；每次按需只研究一个问题、复用未变来源。Blackstone只按其流程收录脱敏来源和研究结果，
 不直接把工作模板变成已验证知识或运行参数。公开版本不携带本机Vault、私有研究目录或账户记录。
+
+## Reproducible evidence / 可复现证据
+
+Use `node scripts/validate-research.mjs /absolute/public-history.json /absolute/new-report-directory`.
+Input needs symbol, bars, retrievedAt and actual interval, with source URLs/currency provenance retained when supplied.
+The command makes no network or account request and refuses an existing output directory. It records the input SHA-256,
+all three fixed candidate results, cost assumptions, same-cost benchmark, continuous drawdown and abstentions.
+Results are historical diagnostics, never automatic strategy approval. Plain summary files explicitly flag unknown dividends,
+adjustment, point-in-time evidence, transaction costs and prospective validation.
+
+首轮本地冻结研究保留9项日线结果与9项MAX周期不符弃权；不把月线改名为日线。历史回放不计入前瞻观察天数。
